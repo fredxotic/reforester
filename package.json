@@ -1,0 +1,11 @@
+{
+  "name": "reforester",
+  "version": "1.0.0",
+  "description": "AI-Powered Reforestation Assistant",
+  "scripts": {
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": ["reforestation", "ai", "environment"],
+  "author": "Fred Kaloki",
+  "license": "MIT"
+}
