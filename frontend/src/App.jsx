@@ -2,12 +2,25 @@ import React, { useState } from 'react';
 import MapPicker from './components/MapPicker';
 import ResultsPanel from './components/ResultsPanel';
 import Loader from './components/Loader';
+import Sidebar from './components/Sidebar';
+import SpeciesDatabase from './components/SpeciesDatabase';
+import ProjectDashboard from './components/projects/ProjectDashboard';
+import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
+import UserProfile from './components/auth/UserProfile';
+import AuthModal from './components/auth/AuthModal';
+import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [activeView, setActiveView] = useState('map');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   const handleLocationSelect = async (lat, lon) => {
     setLoading(true);
@@ -43,38 +56,120 @@ function App() {
     setError(null);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-emerald-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-white text-lg">🌱</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-700 to-teal-800 bg-clip-text text-transparent">
-                  ReForester
-                </h1>
-                <p className="text-xs text-emerald-600 -mt-1">AI Reforestation Assistant</p>
-              </div>
-            </div>
-            
-            {analysisData && (
-              <button 
-                onClick={handleReset}
-                className="btn-secondary text-sm"
-              >
-                New Analysis
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+  const handleViewChange = (view) => {
+    // Require authentication for protected views
+    if (['projects', 'analytics', 'account'].includes(view) && !isAuthenticated) {
+      setAuthModalOpen(true);
+      return;
+    }
+    
+    setActiveView(view);
+    // Reset analysis data when switching away from map view
+    if (view !== 'map') {
+      setAnalysisData(null);
+      setSelectedLocation(null);
+      setError(null);
+    }
+  };
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  // Render different views based on activeView
+  const renderMainContent = () => {
+    if (authLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader />
+        </div>
+      );
+    }
+
+    switch (activeView) {
+      case 'species':
+        return <SpeciesDatabase />;
+      
+      case 'projects':
+        return isAuthenticated ? (
+          <ProjectDashboard />
+        ) : (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-32 h-32 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🔒</span>
+              </div>
+              <h2 className="text-3xl font-bold text-amber-900 mb-4">Authentication Required</h2>
+              <p className="text-amber-700 text-lg mb-6">
+                Please sign in to access your projects.
+              </p>
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+              >
+                Sign In
+              </button>
+            </div>
+          </div>
+        );
+      
+      case 'analytics':
+        return isAuthenticated ? (
+          <AnalyticsDashboard />
+        ) : (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-32 h-32 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🔒</span>
+              </div>
+              <h2 className="text-3xl font-bold text-amber-900 mb-4">Authentication Required</h2>
+              <p className="text-amber-700 text-lg mb-6">
+                Please sign in to access advanced analytics and growth projections.
+              </p>
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+              >
+                Sign In
+              </button>
+            </div>
+          </div>
+        );
+      
+      case 'account':
+        return isAuthenticated ? (
+          <UserProfile />
+        ) : (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-32 h-32 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">🔒</span>
+              </div>
+              <h2 className="text-3xl font-bold text-amber-900 mb-4">Authentication Required</h2>
+              <p className="text-amber-700 text-lg mb-6">
+                Please sign in to access your account settings.
+              </p>
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+              >
+                Sign In
+              </button>
+            </div>
+          </div>
+        );
+      
+      case 'map':
+      default:
+        return renderMapAnalysis();
+    }
+  };
+
+  const renderMapAnalysis = () => {
+    return (
+      <div className={`mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300 ${
+        sidebarCollapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-7xl'
+      }`}>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {/* Map Section */}
           <div className="space-y-6">
@@ -135,10 +230,10 @@ function App() {
               
               <div className="card bg-white/60 text-center p-4 border-emerald-200">
                 <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                  <span className="text-emerald-600">🌳</span>
+                  <span className="text-emerald-600">🤖</span>
                 </div>
-                <h3 className="font-semibold text-emerald-900 text-sm">Species Database</h3>
-                <p className="text-xs text-emerald-700 mt-1">Thousands of tree species</p>
+                <h3 className="font-semibold text-emerald-900 text-sm">AI Powered</h3>
+                <p className="text-xs text-emerald-700 mt-1">Smart recommendations</p>
               </div>
             </div>
 
@@ -220,7 +315,7 @@ function App() {
                   Start Your Reforestation Journey
                 </h3>
                 <p className="text-emerald-700 max-w-md mx-auto text-lg mb-6">
-                  Select a location on the map to receive personalized tree planting recommendations and access our comprehensive species database.
+                  Select a location on the map to receive personalized tree planting recommendations.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm text-emerald-600 mb-6">
                   <div className="flex items-center space-x-2 bg-emerald-50 px-4 py-2 rounded-lg">
@@ -232,63 +327,170 @@ function App() {
                     <span>Instant Analysis</span>
                   </div>
                   <div className="flex items-center space-x-2 bg-emerald-50 px-4 py-2 rounded-lg">
-                    <span>🌱</span>
-                    <span>Get Plan + Species</span>
+                    <span>📄</span>
+                    <span>Get PDF Report</span>
                   </div>
                 </div>
                 
-                {/* Feature Highlights */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                  <div className="text-left p-4 bg-white/50 rounded-lg border border-emerald-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-emerald-600">📊</span>
-                      <h4 className="font-semibold text-emerald-900">Smart Analysis</h4>
+                {/* Auth prompt for non-authenticated users */}
+                {!isAuthenticated && (
+                  <div className="mt-8 p-6 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <span className="text-amber-600">🔒</span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-amber-900">Create an Account</h4>
+                        <p className="text-amber-700 text-sm">Save your analyses and access advanced features</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-emerald-700">
-                      Get soil composition, weather data, and AI-powered planting strategies
-                    </p>
-                  </div>
-                  <div className="text-left p-4 bg-white/50 rounded-lg border border-emerald-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-emerald-600">🌳</span>
-                      <h4 className="font-semibold text-emerald-900">Species Database</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-amber-700 mb-4">
+                      <div className="flex items-center space-x-1">
+                        <span>📊</span>
+                        <span>Project Management</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span>📈</span>
+                        <span>Growth Analytics</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span>💾</span>
+                        <span>Save Locations</span>
+                      </div>
                     </div>
-                    <p className="text-sm text-emerald-700">
-                      Access thousands of tree species with detailed information and images
-                    </p>
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Sign Up Free
+                    </button>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
         </div>
-      </main>
+      </div>
+    );
+  };
 
-      {/* Footer */}
-      <footer className="bg-white/60 backdrop-blur-sm border-t border-emerald-200 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-3">
-              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
-                <span className="text-emerald-600 text-xs">🌍</span>
+  return (
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
+        {/* Header with Hamburger */}
+        <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-emerald-200 sticky top-0 z-30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center space-x-4">
+                {/* Hamburger Menu */}
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-2 rounded-lg hover:bg-emerald-50 transition-colors md:hidden"
+                >
+                  <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+                
+                {/* Desktop collapse button when sidebar is collapsed */}
+                {sidebarCollapsed && (
+                  <button
+                    onClick={toggleSidebarCollapse}
+                    className="hidden md:flex p-2 rounded-lg hover:bg-emerald-50 transition-colors"
+                    title="Expand sidebar"
+                  >
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                )}
+                
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-md">
+                    <span className="text-white text-sm">🌱</span>
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-700 to-teal-800 bg-clip-text text-transparent">
+                      ReForester
+                    </h1>
+                  </div>
+                </div>
               </div>
-              <p className="text-emerald-800 font-medium">
-                ReForester - Planting Tomorrow's Forests Today
-              </p>
-            </div>
-            <p className="text-emerald-600 text-sm mb-4">
-              AI-powered reforestation planning with global species database
-            </p>
-            <div className="flex justify-center space-x-6 text-xs text-emerald-500">
-              <span>🌱 Soil Analysis</span>
-              <span>🌤️ Weather Data</span>
-              <span>🤖 AI Recommendations</span>
-              <span>🌳 Species Database</span>
+              
+              {/* View Title */}
+              <div className="flex-1 text-center">
+                <h2 className="text-lg font-semibold text-emerald-900 capitalize">
+                  {activeView === 'map' ? 'Map Analysis' : 
+                  activeView === 'species' ? 'Species Database' :
+                  activeView.replace(/([A-Z])/g, ' $1').trim()}
+                </h2>
+              </div>
+
+              {/* User/Auth Section */}
+              <div className="flex items-center space-x-4">
+                {isAuthenticated ? (
+                  <div className="flex items-center space-x-3">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-sm font-medium text-emerald-900">{user.name}</p>
+                      <p className="text-xs text-emerald-600">{user.email}</p>
+                    </div>
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                      ) : (
+                        user.name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setAuthModalOpen(true)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                )}
+
+                {analysisData && activeView === 'map' && (
+                  <button 
+                    onClick={handleReset}
+                    className="btn-secondary text-sm"
+                  >
+                    New Analysis
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+        </header>
+
+        {/* Main Layout */}
+        <div className="flex">
+          {/* Sidebar */}
+          <Sidebar 
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={toggleSidebarCollapse}
+          />
+          
+          {/* Main Content */}
+          <main className="flex-1 min-h-screen overflow-x-hidden">
+            {renderMainContent()}
+          </main>
         </div>
-      </footer>
-    </div>
+      </div>
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
+    </>
   );
 }
 

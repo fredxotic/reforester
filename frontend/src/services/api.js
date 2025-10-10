@@ -11,9 +11,13 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for logging
+// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem('reforester_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     console.log(`Making API request to: ${config.url}`);
     return config;
   },
@@ -30,6 +34,13 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API response error:', error);
+    
+    // Handle authentication errors
+    if (error.response?.status === 401) {
+      localStorage.removeItem('reforester_token');
+      // You might want to redirect to login page here
+      window.dispatchEvent(new Event('authError'));
+    }
     
     if (error.response) {
       // Server responded with error status
