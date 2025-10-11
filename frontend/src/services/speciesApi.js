@@ -12,7 +12,7 @@ const POPULAR_SPECIES_IMAGES = {
   'quercus-robur': 'https://i.pinimg.com/736x/eb/d1/ee/ebd1ee6817555b3886614f479797fb76.jpg',
   'pinus-sylvestris': 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=320&h=320&fit=crop',
   'eucalyptus-globulus': 'https://i.pinimg.com/736x/05/3f/e0/053fe0119f756964ef026d5e562abd39.jpg',
-  'terminalia-brownii': 'https://www.pinterest.com/pin/103231016455209475/',
+  'terminalia-brownii': 'https://i.pinimg.com/1200x/be/4a/13/be4a130815376cc8137d2d673bd239a4.jpg',
 };
 
 const COMMON_NAME_MAPPING = {
