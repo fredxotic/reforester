@@ -1,15 +1,13 @@
 import express from 'express';
 import Project from '../models/Project.js';
+import User from '../models/User.js'; // ADD THIS IMPORT
 import { authenticateToken } from '../middleware/auth.js';
-import connectDB from '../config/database.js'; // ADD THIS IMPORT
 
 const router = express.Router();
 
 // Get all projects for authenticated user
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const { status, limit = 10, page = 1 } = req.query;
     
     const query = { 
@@ -54,8 +52,6 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get single project
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -87,8 +83,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new project
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const {
       name,
       description,
@@ -131,8 +125,10 @@ router.post('/', authenticateToken, async (req, res) => {
     await project.populate('owner', 'name email avatar');
 
     // Add project to user's projects array
-    req.user.projects.push(project._id);
-    await req.user.save();
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $push: { projects: project._id } }
+    );
 
     res.status(201).json({
       message: 'Project created successfully',
@@ -151,8 +147,6 @@ router.post('/', authenticateToken, async (req, res) => {
 // Update project
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -211,8 +205,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // Delete project
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       owner: req.user._id // Only owner can delete
@@ -228,10 +220,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     await Project.findByIdAndDelete(req.params.id);
 
     // Remove project from user's projects array
-    req.user.projects = req.user.projects.filter(
-      projectId => projectId.toString() !== req.params.id
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $pull: { projects: req.params.id } }
     );
-    await req.user.save();
 
     res.json({
       message: 'Project deleted successfully'
@@ -249,8 +241,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // Add team member to project
 router.post('/:id/team', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const { userId, role = 'contributor' } = req.body;
 
     const project = await Project.findOne({
@@ -271,7 +261,24 @@ router.post('/:id/team', authenticateToken, async (req, res) => {
       });
     }
 
-    await project.addTeamMember(userId, role);
+    // Check if user is already a team member
+    const existingMember = project.teamMembers.find(
+      member => member.user.toString() === userId
+    );
+
+    if (existingMember) {
+      return res.status(400).json({
+        error: 'User already in team',
+        message: 'This user is already a team member'
+      });
+    }
+
+    project.teamMembers.push({
+      user: userId,
+      role
+    });
+
+    await project.save();
     await project.populate('teamMembers.user', 'name email avatar');
 
     res.json({
@@ -291,8 +298,6 @@ router.post('/:id/team', authenticateToken, async (req, res) => {
 // Remove team member from project
 router.delete('/:id/team/:userId', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -319,7 +324,11 @@ router.delete('/:id/team/:userId', authenticateToken, async (req, res) => {
       });
     }
 
-    await project.removeTeamMember(req.params.userId);
+    project.teamMembers = project.teamMembers.filter(
+      member => member.user.toString() !== req.params.userId
+    );
+
+    await project.save();
     await project.populate('teamMembers.user', 'name email avatar');
 
     res.json({
@@ -339,8 +348,6 @@ router.delete('/:id/team/:userId', authenticateToken, async (req, res) => {
 // Add milestone to project
 router.post('/:id/milestones', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const { name, description, targetDate } = req.body;
 
     const project = await Project.findOne({
@@ -368,7 +375,6 @@ router.post('/:id/milestones', authenticateToken, async (req, res) => {
     });
 
     await project.save();
-    await project.updateProgress();
 
     res.json({
       message: 'Milestone added successfully',
@@ -387,8 +393,6 @@ router.post('/:id/milestones', authenticateToken, async (req, res) => {
 // Update milestone completion
 router.put('/:id/milestones/:milestoneId', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const { completed } = req.body;
 
     const project = await Project.findOne({
@@ -425,7 +429,6 @@ router.put('/:id/milestones/:milestoneId', authenticateToken, async (req, res) =
     }
 
     await project.save();
-    await project.updateProgress();
 
     res.json({
       message: 'Milestone updated successfully',
@@ -444,8 +447,6 @@ router.put('/:id/milestones/:milestoneId', authenticateToken, async (req, res) =
 // Get project analytics
 router.get('/:id/analytics', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -463,20 +464,21 @@ router.get('/:id/analytics', authenticateToken, async (req, res) => {
 
     // Calculate additional analytics
     const analytics = {
-      basic: project.analytics,
+      basic: project.analytics || {},
       speciesBreakdown: project.species.map(species => ({
         name: species.name,
         quantity: species.quantity,
-        percentage: (species.quantity / project.analytics.totalTrees) * 100,
+        percentage: project.analytics?.totalTrees ? 
+          (species.quantity / project.analytics.totalTrees) * 100 : 0,
         survivalRate: species.survivalRate
       })),
-      budgetUtilization: project.budget.estimatedCost ? 
-        (project.budget.actualCost || 0) / project.budget.estimatedCost * 100 : 0,
-      timelineProgress: project.analytics.progress,
+      budgetUtilization: project.budget?.estimatedCost ? 
+        ((project.budget.actualCost || 0) / project.budget.estimatedCost) * 100 : 0,
+      timelineProgress: project.analytics?.progress || 0,
       environmentalImpact: {
-        carbonSequestration: project.analytics.estimatedCarbonSequestration,
-        oxygenProduction: project.analytics.totalTrees * 260, // kg per year per tree
-        soilConservation: project.analytics.areaCovered * 10 // arbitrary soil conservation score
+        carbonSequestration: project.analytics?.estimatedCarbonSequestration || 0,
+        oxygenProduction: (project.analytics?.totalTrees || 0) * 260, // kg per year per tree
+        soilConservation: (project.analytics?.areaCovered || 0) * 10 // arbitrary soil conservation score
       }
     };
 
@@ -494,8 +496,6 @@ router.get('/:id/analytics', authenticateToken, async (req, res) => {
 // Create project from analysis
 router.post('/from-analysis', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const { name, description, analysisData, species } = req.body;
 
     if (!name || !analysisData || !analysisData.coordinates) {
@@ -536,8 +536,10 @@ router.post('/from-analysis', authenticateToken, async (req, res) => {
     await project.populate('owner', 'name email avatar');
 
     // Add project to user's projects array
-    req.user.projects.push(project._id);
-    await req.user.save();
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $push: { projects: project._id } }
+    );
 
     res.status(201).json({
       message: 'Project created from analysis successfully',

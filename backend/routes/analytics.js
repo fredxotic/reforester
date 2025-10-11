@@ -1,15 +1,12 @@
 import express from 'express';
 import Project from '../models/Project.js';
 import { authenticateToken } from '../middleware/auth.js';
-import connectDB from '../config/database.js'; // ADD THIS IMPORT
 
 const router = express.Router();
 
 // Get analytics overview for user
 router.get('/overview', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const projects = await Project.find({
       $or: [
         { owner: req.user._id },
@@ -37,9 +34,9 @@ router.get('/overview', authenticateToken, async (req, res) => {
     };
 
     // Species diversity
-    const allSpecies = projects.flatMap(p => p.species);
+    const allSpecies = projects.flatMap(p => p.species || []);
     const speciesCount = allSpecies.reduce((acc, species) => {
-      acc[species.name] = (acc[species.name] || 0) + species.quantity;
+      acc[species.name] = (acc[species.name] || 0) + (species.quantity || 0);
       return acc;
     }, {});
 
@@ -73,8 +70,6 @@ router.get('/overview', authenticateToken, async (req, res) => {
 // Get growth projections for a project
 router.get('/project/:id/growth-projections', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -107,8 +102,6 @@ router.get('/project/:id/growth-projections', authenticateToken, async (req, res
 // Get carbon sequestration timeline
 router.get('/project/:id/carbon-timeline', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -140,8 +133,6 @@ router.get('/project/:id/carbon-timeline', authenticateToken, async (req, res) =
 // Get biodiversity impact
 router.get('/project/:id/biodiversity', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -173,8 +164,6 @@ router.get('/project/:id/biodiversity', authenticateToken, async (req, res) => {
 // Get financial analytics
 router.get('/project/:id/financial', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -206,8 +195,6 @@ router.get('/project/:id/financial', authenticateToken, async (req, res) => {
 // Get comparative analytics across projects
 router.get('/comparative', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
-
     const { metric = 'carbon_sequestration', period = 'year' } = req.query;
     
     const projects = await Project.find({
@@ -232,7 +219,7 @@ router.get('/comparative', authenticateToken, async (req, res) => {
 
 // Helper function to generate growth projections
 function generateGrowthProjections(project) {
-  const startDate = new Date(project.timeline.startDate);
+  const startDate = new Date(project.timeline?.startDate || new Date());
   const projections = [];
   const totalTrees = project.analytics?.totalTrees || 0;
   
@@ -253,7 +240,7 @@ function generateGrowthProjections(project) {
     const avgHeight = Math.min(25, 2 + (year * 2.3)); // meters
     
     // Canopy coverage
-    const canopyCoverage = project.analytics?.areaCovered * maturityFactor || 0;
+    const canopyCoverage = (project.analytics?.areaCovered || 0) * maturityFactor;
     
     projections.push({
       year,
@@ -272,7 +259,7 @@ function generateGrowthProjections(project) {
 // Helper function to generate carbon timeline
 function generateCarbonTimeline(project) {
   const timeline = [];
-  const startDate = new Date(project.timeline.startDate);
+  const startDate = new Date(project.timeline?.startDate || new Date());
   const totalTrees = project.analytics?.totalTrees || 0;
   const survivalRate = project.analytics?.survivalRate || 85;
   
@@ -301,9 +288,9 @@ function generateCarbonTimeline(project) {
 
 // Helper function to calculate biodiversity impact
 function calculateBiodiversityImpact(project) {
-  const speciesCount = project.species.length;
+  const speciesCount = project.species?.length || 0;
   const totalTrees = project.analytics?.totalTrees || 0;
-  const area = project.analytics?.areaCovered || 0;
+  const area = project.analytics?.areaCovered || 1; // Avoid division by zero
   
   // Simplified biodiversity scoring
   let score = 0;
@@ -350,7 +337,7 @@ function calculateBiodiversityImpact(project) {
 function generateBiodiversityRecommendations(project, score) {
   const recommendations = [];
   
-  if (project.species.length < 3) {
+  if ((project.species?.length || 0) < 3) {
     recommendations.push({
       priority: 'high',
       action: 'Increase species diversity',
@@ -368,7 +355,7 @@ function generateBiodiversityRecommendations(project, score) {
     });
   }
   
-  if (project.analytics?.areaCovered < 5) {
+  if ((project.analytics?.areaCovered || 0) < 5) {
     recommendations.push({
       priority: 'low',
       action: 'Expand project area if possible',
@@ -387,8 +374,8 @@ function calculateFinancialAnalytics(project) {
   const totalTrees = project.analytics?.totalTrees || 0;
   
   const costPerTree = totalTrees > 0 ? (actualCost || estimatedCost) / totalTrees : 0;
-  const carbonCost = project.analytics?.estimatedCarbonSequestration > 0 ? 
-    (actualCost || estimatedCost) / project.analytics.estimatedCarbonSequestration : 0;
+  const carbonCost = (project.analytics?.estimatedCarbonSequestration || 0) > 0 ? 
+    (actualCost || estimatedCost) / (project.analytics.estimatedCarbonSequestration || 1) : 0;
   
   // Simplified ROI calculation (carbon credits @ $50/ton)
   const carbonCreditValue = (project.analytics?.estimatedCarbonSequestration || 0) * 50;
@@ -439,7 +426,7 @@ function generateFinancialRecommendations(project, roi) {
     });
   }
   
-  if (project.analytics?.survivalRate < 80) {
+  if ((project.analytics?.survivalRate || 0) < 80) {
     recommendations.push({
       priority: 'high',
       action: 'Improve survival rates',
@@ -466,7 +453,7 @@ function generateComparativeAnalytics(projects, metric, period) {
         value = trees / cost;
         break;
       case 'biodiversity':
-        value = project.species.length;
+        value = project.species?.length || 0;
         break;
       case 'area':
         value = project.analytics?.areaCovered || 0;
@@ -481,7 +468,7 @@ function generateComparativeAnalytics(projects, metric, period) {
       value: parseFloat(value.toFixed(2)),
       status: project.status,
       location: project.location,
-      speciesCount: project.species.length
+      speciesCount: project.species?.length || 0
     };
   });
   
