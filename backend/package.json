@@ -27,5 +27,8 @@
     "environment",
     "authentication"
   ],
-  "author": "ReForester Team"
+  "author": "ReForester Team",
+  "devDependencies": {
+    "vercel": "^48.2.9"
+  }
 }

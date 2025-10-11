@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://reforester.vercel.app';
+const API_BASE_URL = 'https://api-reforester.vercel.app';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -18,7 +18,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log(`Making API request to: ${config.url}`);
+    console.log(`Making API request to: ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
@@ -56,14 +56,58 @@ api.interceptors.response.use(
 );
 
 // API methods
+export const authAPI = {
+  register: async (userData) => {
+    const response = await api.post('/api/auth/register', userData);
+    return response.data;
+  },
+  
+  login: async (email, password) => {
+    const response = await api.post('/api/auth/login', { email, password });
+    return response.data;
+  },
+  
+  googleAuth: async (googleToken) => {
+    const response = await api.post('/api/auth/google', { token: googleToken });
+    return response.data;
+  },
+  
+  verifyEmail: async (token) => {
+    const response = await api.post('/api/auth/verify-email', { token });
+    return response.data;
+  },
+  
+  getProfile: async () => {
+    const response = await api.get('/api/auth/me');
+    return response.data;
+  }
+};
+
 export const reforestAPI = {
   analyzeLocation: async (lat, lon) => {
-    const response = await api.post('/reforest', { lat, lon });
+    const response = await api.post('/api/reforest', { lat, lon });
     return response.data;
   },
   
   healthCheck: async () => {
     const response = await api.get('/health');
+    return response.data;
+  }
+};
+
+export const projectsAPI = {
+  getProjects: async () => {
+    const response = await api.get('/api/projects');
+    return response.data;
+  },
+  
+  createProject: async (projectData) => {
+    const response = await api.post('/api/projects', projectData);
+    return response.data;
+  },
+  
+  getProject: async (id) => {
+    const response = await api.get(`/api/projects/${id}`);
     return response.data;
   }
 };
