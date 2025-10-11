@@ -11,7 +11,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // ADD THIS FOR CORS
+  withCredentials: true,
 });
 
 // Request interceptor
@@ -46,16 +46,13 @@ api.interceptors.response.use(
     }
     
     if (error.response) {
-      // Server responded with error status
       const message = error.response.data?.message || 
                      error.response.data?.error || 
                      `Server error: ${error.response.status}`;
       throw new Error(message);
     } else if (error.request) {
-      // Request made but no response received
       throw new Error('Network error: Could not connect to server. Please check your connection.');
     } else {
-      // Something else happened
       throw new Error('Request configuration error');
     }
   }

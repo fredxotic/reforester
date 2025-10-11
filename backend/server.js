@@ -5,13 +5,13 @@ import dotenv from 'dotenv';
 // Load environment variables FIRST
 dotenv.config();
 
-// ✅ Database connection
+// Database connection
 import connectDB from './config/database.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ FIXED CORS CONFIGURATION - More permissive for development
+// CORS Configuration
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -37,16 +37,16 @@ import reforestRouter from './routes/reforest.js';
 import authRouter from './routes/auth.js';
 import projectRouter from './routes/projects.js';
 import analyticsRouter from './routes/analytics.js';
-import speciesRouter from './routes/species.js'; // ADD THIS
+import speciesRouter from './routes/species.js';
 
-// ✅ FIXED ROUTE MOUNTING - Ensure all routes have /api prefix
+// ✅ FIXED ROUTE MOUNTING - Remove duplicate /api prefix
 app.use('/api/reforest', reforestRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectRouter);
 app.use('/api/analytics', analyticsRouter);
-app.use('/api/species', speciesRouter); // ADD THIS
+app.use('/api/species', speciesRouter);
 
-// ✅ FIXED HEALTH CHECK - Add /api prefix
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -55,7 +55,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// ✅ FIXED ROOT ENDPOINT - Add /api prefix
+// Root endpoint
 app.get('/api', (req, res) => {
   res.json({ 
     message: 'ReForester API is running!',
@@ -87,7 +87,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler - MUST be last
+// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ 
     error: 'Route not found',
@@ -95,6 +95,7 @@ app.use('*', (req, res) => {
     availableEndpoints: [
       'GET /api',
       'GET /api/health',
+      'POST /api/reforest',
       'POST /api/auth/login',
       'POST /api/auth/register',
       'GET /api/projects',
@@ -111,6 +112,7 @@ const startServer = async () => {
     
     app.listen(PORT, () => {
       console.log(`🌳 ReForester backend running on port ${PORT}`);
+      console.log(`📍 Analysis: POST /api/reforest`);
       console.log(`🔐 Authentication: /api/auth`);
       console.log(`📊 Projects: /api/projects`);
       console.log(`📈 Analytics: /api/analytics`);
@@ -126,5 +128,4 @@ const startServer = async () => {
 // Start the server
 startServer();
 
-// Export for Vercel serverless functions
 export default app;

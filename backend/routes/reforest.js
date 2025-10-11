@@ -12,7 +12,8 @@ const validateCoordinates = (req, res, next) => {
   
   if (lat === undefined || lon === undefined) {
     return res.status(400).json({
-      error: 'Missing coordinates. Provide both latitude and longitude'
+      error: 'Missing coordinates',
+      message: 'Provide both latitude and longitude'
     });
   }
 
@@ -21,27 +22,24 @@ const validateCoordinates = (req, res, next) => {
 
   if (isNaN(latNum) || isNaN(lonNum)) {
     return res.status(400).json({
-      error: 'Invalid coordinates. Latitude and longitude must be numbers'
+      error: 'Invalid coordinates',
+      message: 'Latitude and longitude must be numbers'
     });
   }
 
   if (latNum < -90 || latNum > 90 || lonNum < -180 || lonNum > 180) {
     return res.status(400).json({
-      error: 'Invalid coordinates. Provide valid latitude (-90 to 90) and longitude (-180 to 180)'
+      error: 'Invalid coordinates', 
+      message: 'Provide valid latitude (-90 to 90) and longitude (-180 to 180)'
     });
   }
 
-  // Add validated numbers to request for later use
-  req.validatedCoords = {
-    lat: latNum,
-    lon: lonNum
-  };
-
+  req.validatedCoords = { lat: latNum, lon: lonNum };
   next();
 };
 
-// Main endpoint for reforestation analysis
-router.post('/reforest', validateCoordinates, async (req, res) => {
+// ✅ FIXED: Main endpoint - now at /api/reforest (not /api/reforest/reforest)
+router.post('/', validateCoordinates, async (req, res) => {
   const startTime = Date.now();
   const { lat, lon } = req.validatedCoords;
 
@@ -63,8 +61,8 @@ router.post('/reforest', validateCoordinates, async (req, res) => {
       soilData = processSoilData(soilResult.value);
       console.log(`✅ Soil data retrieved: clay=${soilData.clay}%, sand=${soilData.sand}%, silt=${soilData.silt}%`);
     } else {
-      console.warn('❌ Failed to fetch soil data, using fallback:', soilResult.reason.message);
-      soilData = processSoilData(null); // This will use default values
+      console.warn('❌ Failed to fetch soil data, using fallback:', soilResult.reason?.message);
+      soilData = processSoilData(null);
       soilFallback = true;
     }
 
@@ -72,14 +70,27 @@ router.post('/reforest', validateCoordinates, async (req, res) => {
       weatherData = processWeatherData(weatherResult.value);
       console.log(`✅ Weather data retrieved: temp=${weatherData.temperature}°C, precip=${weatherData.precipitation}mm`);
     } else {
-      console.warn('❌ Failed to fetch weather data, using fallback:', weatherResult.reason.message);
-      weatherData = processWeatherData(null); // This will use default values
+      console.warn('❌ Failed to fetch weather data, using fallback:', weatherResult.reason?.message);
+      weatherData = processWeatherData(null);
       weatherFallback = true;
     }
 
-    // Get AI recommendation
-    const aiRecommendation = await getAIRecommendation(lat, lon, soilData, weatherData);
-    
+    // Get AI recommendation with error handling
+    let aiRecommendation;
+    try {
+      aiRecommendation = await getAIRecommendation(lat, lon, soilData, weatherData);
+    } catch (aiError) {
+      console.warn('❌ AI recommendation failed, using fallback:', aiError.message);
+      aiRecommendation = {
+        text: `Based on the location at ${lat}, ${lon}, this area appears suitable for general reforestation. Consider consulting local forestry experts for species selection.`,
+        suitableSpecies: ['Native species appropriate for local conditions'],
+        plantingSeason: 'During rainy season',
+        maintenanceTips: ['Regular watering during establishment', 'Protection from grazing animals'],
+        risks: ['Drought conditions', 'Soil erosion'],
+        source: 'fallback'
+      };
+    }
+
     const processingTime = Date.now() - startTime;
 
     // Return complete analysis
@@ -88,7 +99,7 @@ router.post('/reforest', validateCoordinates, async (req, res) => {
       dataSources: {
         soil: soilFallback ? 'fallback' : 'api',
         weather: weatherFallback ? 'fallback' : 'api',
-        ai: aiRecommendation.source
+        ai: aiRecommendation.source || 'api'
       },
       soil: {
         ...soilData,
@@ -110,15 +121,6 @@ router.post('/reforest', validateCoordinates, async (req, res) => {
     const processingTime = Date.now() - startTime;
     console.error(`❌ Error in reforest endpoint for (${lat}, ${lon}):`, error.message);
 
-    // More specific error responses
-    if (error.type === 'VALIDATION_ERROR') {
-      return res.status(400).json({
-        error: 'Data validation failed',
-        message: error.message,
-        processingTime: `${processingTime}ms`
-      });
-    }
-
     res.status(500).json({
       error: 'Failed to generate reforestation analysis',
       message: error.message,
@@ -127,16 +129,16 @@ router.post('/reforest', validateCoordinates, async (req, res) => {
   }
 });
 
-// Health check endpoint
+// Health check endpoint - now at /api/reforest/health
 router.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
-    service: 'ReForecaster API',
+    service: 'ReForester Analysis API',
     timestamp: new Date().toISOString()
   });
 });
 
-// Endpoint to get supported biomes (useful for frontend)
+// Endpoint to get supported biomes
 router.get('/biomes', (req, res) => {
   res.json({
     biomes: [
@@ -159,7 +161,7 @@ router.get('/biomes', (req, res) => {
   });
 });
 
-// Endpoint to generate and download PDF report
+// Endpoint to generate and download PDF report - now at /api/reforest/download-pdf
 router.post('/download-pdf', async (req, res) => {
   try {
     const { analysisData } = req.body;
