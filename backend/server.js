@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 // Load environment variables FIRST
 dotenv.config();
 
+// ✅ ADD THIS IMPORT - Database connection
+import connectDB from './config/database.js';
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -106,15 +109,29 @@ app.use('*', (req, res) => {
   });
 });
 
+// ✅ ADD THIS - Initialize database connection
+const startServer = async () => {
+  try {
+    await connectDB();
+    console.log('✅ Database connected successfully');
+    
+    // Only listen locally, not on Vercel
+    if (process.env.NODE_ENV !== 'production') {
+      app.listen(PORT, () => {
+        console.log(`🌳 ReForester backend running on port ${PORT}`);
+        console.log(`🔐 Authentication endpoints available at /api/auth`);
+        console.log(`📊 Project management available at /api/projects`);
+        console.log(`📈 Advanced analytics available at /api/analytics`);
+      });
+    }
+  } catch (error) {
+    console.error('❌ Failed to connect to database:', error.message);
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();
+
 // Export for Vercel serverless functions
 export default app;
-
-// Only listen locally, not on Vercel
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🌳 ReForester backend running on port ${PORT}`);
-    console.log(`🔐 Authentication endpoints available at /api/auth`);
-    console.log(`📊 Project management available at /api/projects`);
-    console.log(`📈 Advanced analytics available at /api/analytics`);
-  });
-}
