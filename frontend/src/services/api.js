@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api-reforester.vercel.app';
 
+console.log('🔧 API Base URL:', API_BASE_URL);
+
+// Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -50,7 +53,7 @@ api.interceptors.response.use(
   }
 );
 
-// ✅ CRITICAL: All routes MUST have /api prefix
+// ✅✅✅ CRITICAL: ALL ROUTES MUST HAVE /api PREFIX ✅✅✅
 export const authAPI = {
   login: async (credentials) => {
     const response = await api.post('/api/auth/login', credentials);
@@ -74,6 +77,82 @@ export const authAPI = {
   
   resendVerification: async (email) => {
     const response = await api.post('/api/auth/resend-verification', { email });
+    return response.data;
+  },
+  
+  forgotPassword: async (email) => {
+    const response = await api.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+  
+  resetPassword: async (token, password) => {
+    const response = await api.post('/api/auth/reset-password', { token, password });
+    return response.data;
+  },
+  
+  getProfile: async () => {
+    const response = await api.get('/api/auth/me');
+    return response.data;
+  }
+};
+
+export const reforestAPI = {
+  analyzeLocation: async (lat, lon) => {
+    const response = await api.post('/api/reforest', { lat, lon });
+    return response.data;
+  },
+  
+  healthCheck: async () => {
+    const response = await api.get('/health');
+    return response.data;
+  },
+  
+  downloadPDF: async (analysisData) => {
+    const response = await api.post('/api/download-pdf', { analysisData });
+    return response.data;
+  }
+};
+
+export const projectAPI = {
+  getProjects: async (params = {}) => {
+    const response = await api.get('/api/projects', { params });
+    return response.data;
+  },
+  
+  getProject: async (id) => {
+    const response = await api.get(`/api/projects/${id}`);
+    return response.data;
+  },
+  
+  createProject: async (projectData) => {
+    const response = await api.post('/api/projects', projectData);
+    return response.data;
+  },
+  
+  updateProject: async (id, projectData) => {
+    const response = await api.put(`/api/projects/${id}`, projectData);
+    return response.data;
+  },
+  
+  deleteProject: async (id) => {
+    const response = await api.delete(`/api/projects/${id}`);
+    return response.data;
+  }
+};
+
+export const analyticsAPI = {
+  getOverview: async () => {
+    const response = await api.get('/api/analytics/overview');
+    return response.data;
+  },
+  
+  getGrowthProjections: async (projectId) => {
+    const response = await api.get(`/api/analytics/project/${projectId}/growth-projections`);
+    return response.data;
+  },
+  
+  getCarbonTimeline: async (projectId) => {
+    const response = await api.get(`/api/analytics/project/${projectId}/carbon-timeline`);
     return response.data;
   }
 };
