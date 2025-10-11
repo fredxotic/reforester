@@ -5,75 +5,86 @@ const API_BASE_URL = 'https://api-reforester.vercel.app';
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30 second timeout
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('reforester_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log(`Making API request to: ${config.baseURL}${config.url}`);
+    console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
-    console.error('API request error:', error);
+    console.error('❌ API Request Error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor for error handling
+// Response interceptor
 api.interceptors.response.use(
   (response) => {
+    console.log(`✅ API Response: ${response.status} ${response.config.url}`);
     return response;
   },
   (error) => {
-    console.error('API response error:', error);
+    console.error('❌ API Response Error:', error.response?.status, error.config?.url);
     
-    // Handle authentication errors
     if (error.response?.status === 401) {
       localStorage.removeItem('reforester_token');
-      // You might want to redirect to login page here
       window.dispatchEvent(new Event('authError'));
     }
     
     if (error.response) {
-      // Server responded with error status
       throw new Error(error.response.data.message || `Server error: ${error.response.status}`);
     } else if (error.request) {
-      // Request made but no response received
       throw new Error('Network error: Could not connect to server');
     } else {
-      // Something else happened
       throw new Error('Request configuration error');
     }
   }
 );
 
-// API methods
+// ✅ FIXED: All routes now have /api prefix
 export const authAPI = {
+  login: async (credentials) => {
+    const response = await api.post('/api/auth/login', credentials);
+    return response.data;
+  },
+  
   register: async (userData) => {
     const response = await api.post('/api/auth/register', userData);
     return response.data;
   },
   
-  login: async (email, password) => {
-    const response = await api.post('/api/auth/login', { email, password });
-    return response.data;
-  },
-  
-  googleAuth: async (googleToken) => {
+  googleLogin: async (googleToken) => {
     const response = await api.post('/api/auth/google', { token: googleToken });
     return response.data;
   },
   
-  verifyEmail: async (token) => {
-    const response = await api.post('/api/auth/verify-email', { token });
+  updateProfile: async (profileData) => {
+    const response = await api.put('/api/auth/profile', profileData);
+    return response.data;
+  },
+  
+  resendVerification: async (email) => {
+    const response = await api.post('/api/auth/resend-verification', { email });
+    return response.data;
+  },
+  
+  forgotPassword: async (email) => {
+    const response = await api.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+  
+  resetPassword: async (token, password) => {
+    const response = await api.post('/api/auth/reset-password', { token, password });
     return response.data;
   },
   
@@ -92,12 +103,22 @@ export const reforestAPI = {
   healthCheck: async () => {
     const response = await api.get('/health');
     return response.data;
+  },
+  
+  downloadPDF: async (analysisData) => {
+    const response = await api.post('/api/download-pdf', { analysisData });
+    return response.data;
   }
 };
 
-export const projectsAPI = {
-  getProjects: async () => {
-    const response = await api.get('/api/projects');
+export const projectAPI = {
+  getProjects: async (params = {}) => {
+    const response = await api.get('/api/projects', { params });
+    return response.data;
+  },
+  
+  getProject: async (id) => {
+    const response = await api.get(`/api/projects/${id}`);
     return response.data;
   },
   
@@ -106,8 +127,30 @@ export const projectsAPI = {
     return response.data;
   },
   
-  getProject: async (id) => {
-    const response = await api.get(`/api/projects/${id}`);
+  updateProject: async (id, projectData) => {
+    const response = await api.put(`/api/projects/${id}`, projectData);
+    return response.data;
+  },
+  
+  deleteProject: async (id) => {
+    const response = await api.delete(`/api/projects/${id}`);
+    return response.data;
+  }
+};
+
+export const analyticsAPI = {
+  getOverview: async () => {
+    const response = await api.get('/api/analytics/overview');
+    return response.data;
+  },
+  
+  getGrowthProjections: async (projectId) => {
+    const response = await api.get(`/api/analytics/project/${projectId}/growth-projections`);
+    return response.data;
+  },
+  
+  getCarbonTimeline: async (projectId) => {
+    const response = await api.get(`/api/analytics/project/${projectId}/carbon-timeline`);
     return response.data;
   }
 };
