@@ -19,7 +19,9 @@ app.use(cors({
       'http://localhost:5173',
       'https://reforester.vercel.app',
       'https://reforester-git-main-fred-kaloki.vercel.app',
-      'https://reforester-fred-kaloki.vercel.app'
+      'https://reforester-fred-kaloki.vercel.app',
+      'https://reforester.netlify.app', 
+      'https://*.netlify.app'
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
