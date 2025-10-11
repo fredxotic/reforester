@@ -19,12 +19,24 @@ const Login = ({ onSwitchToRegister, onClose }) => {
 
   // Load and initialize Google OAuth
   useEffect(() => {
+    // Replace the Google OAuth initialization with this:
     const initializeGoogleOAuth = () => {
       if (googleInitialized.current || !window.google) return;
 
       try {
+        // ✅ FIX: Make sure VITE_GOOGLE_CLIENT_ID is set in your frontend environment
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        
+        if (!clientId) {
+          console.error('Google Client ID is missing');
+          setError('Google Sign-In is not configured properly.');
+          return;
+        }
+
+        console.log('Initializing Google OAuth with client ID:', clientId.substring(0, 10) + '...');
+
         window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_id: clientId,
           callback: handleGoogleResponse,
           auto_select: false,
           cancel_on_tap_outside: true,
@@ -33,12 +45,11 @@ const Login = ({ onSwitchToRegister, onClose }) => {
         });
 
         googleInitialized.current = true;
-
-        // Render Google button
         renderGoogleButton();
 
       } catch (err) {
-        console.error('Google OAuth initialization failed');
+        console.error('Google OAuth initialization failed:', err);
+        setError('Failed to initialize Google Sign-In.');
       }
     };
 
