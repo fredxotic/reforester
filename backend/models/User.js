@@ -1,13 +1,11 @@
-// backend/models/User.js
 import mongoose from 'mongoose';
 
-// Define schema
 const userSchema = new mongoose.Schema(
   {
     email: {
       type: String,
       required: true,
-      unique: true, // This already creates an index
+      unique: true, // This automatically creates an index
       lowercase: true,
       trim: true,
     },
@@ -30,11 +28,12 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      default: null, // Only for email/password users, null for OAuth
+      default: null,
     },
     googleId: {
       type: String,
       default: null,
+      // REMOVE 'sparse: true' from here - it should only be in the index definition below
     },
     role: {
       type: String,
@@ -81,12 +80,12 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-
-// ✅ Keep only these indexes (no duplicate email index)
-userSchema.index({ googleId: 1 });
+// ONLY define indexes that aren't automatically created by 'unique'
+userSchema.index({ googleId: 1 }, { sparse: true }); // This allows multiple null googleIds
 userSchema.index({ verificationToken: 1 });
+userSchema.index({ createdAt: -1 });
 
-// Method to get public user profile (hide sensitive fields)
+// Method to get public user profile
 userSchema.methods.getPublicProfile = function () {
   const user = this.toObject();
   delete user.password;
@@ -95,6 +94,14 @@ userSchema.methods.getPublicProfile = function () {
   return user;
 };
 
-// Export model
-const User = mongoose.model('User', userSchema);
-export default User;
+// Static method to find user by email (case-insensitive)
+userSchema.statics.findByEmail = function(email) {
+  return this.findOne({ email: email.toLowerCase().trim() });
+};
+
+// Static method to find user by verification token
+userSchema.statics.findByVerificationToken = function(token) {
+  return this.findOne({ verificationToken: token });
+};
+
+export default mongoose.model('User', userSchema);

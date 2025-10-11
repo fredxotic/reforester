@@ -1,12 +1,15 @@
 import express from 'express';
 import Project from '../models/Project.js';
 import { authenticateToken } from '../middleware/auth.js';
+import connectDB from '../config/database.js'; // ADD THIS IMPORT
 
 const router = express.Router();
 
 // Get all projects for authenticated user
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { status, limit = 10, page = 1 } = req.query;
     
     const query = { 
@@ -51,6 +54,8 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get single project
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -82,6 +87,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new project
 router.post('/', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const {
       name,
       description,
@@ -144,6 +151,8 @@ router.post('/', authenticateToken, async (req, res) => {
 // Update project
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -202,6 +211,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // Delete project
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       owner: req.user._id // Only owner can delete
@@ -238,6 +249,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // Add team member to project
 router.post('/:id/team', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { userId, role = 'contributor' } = req.body;
 
     const project = await Project.findOne({
@@ -278,6 +291,8 @@ router.post('/:id/team', authenticateToken, async (req, res) => {
 // Remove team member from project
 router.delete('/:id/team/:userId', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -324,6 +339,8 @@ router.delete('/:id/team/:userId', authenticateToken, async (req, res) => {
 // Add milestone to project
 router.post('/:id/milestones', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { name, description, targetDate } = req.body;
 
     const project = await Project.findOne({
@@ -370,6 +387,8 @@ router.post('/:id/milestones', authenticateToken, async (req, res) => {
 // Update milestone completion
 router.put('/:id/milestones/:milestoneId', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { completed } = req.body;
 
     const project = await Project.findOne({
@@ -425,6 +444,8 @@ router.put('/:id/milestones/:milestoneId', authenticateToken, async (req, res) =
 // Get project analytics
 router.get('/:id/analytics', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -473,6 +494,8 @@ router.get('/:id/analytics', authenticateToken, async (req, res) => {
 // Create project from analysis
 router.post('/from-analysis', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { name, description, analysisData, species } = req.body;
 
     if (!name || !analysisData || !analysisData.coordinates) {

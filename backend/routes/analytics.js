@@ -1,12 +1,15 @@
 import express from 'express';
 import Project from '../models/Project.js';
 import { authenticateToken } from '../middleware/auth.js';
+import connectDB from '../config/database.js'; // ADD THIS IMPORT
 
 const router = express.Router();
 
 // Get analytics overview for user
 router.get('/overview', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const projects = await Project.find({
       $or: [
         { owner: req.user._id },
@@ -70,6 +73,8 @@ router.get('/overview', authenticateToken, async (req, res) => {
 // Get growth projections for a project
 router.get('/project/:id/growth-projections', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -102,6 +107,8 @@ router.get('/project/:id/growth-projections', authenticateToken, async (req, res
 // Get carbon sequestration timeline
 router.get('/project/:id/carbon-timeline', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -133,6 +140,8 @@ router.get('/project/:id/carbon-timeline', authenticateToken, async (req, res) =
 // Get biodiversity impact
 router.get('/project/:id/biodiversity', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -164,6 +173,8 @@ router.get('/project/:id/biodiversity', authenticateToken, async (req, res) => {
 // Get financial analytics
 router.get('/project/:id/financial', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const project = await Project.findOne({
       _id: req.params.id,
       $or: [
@@ -195,6 +206,8 @@ router.get('/project/:id/financial', authenticateToken, async (req, res) => {
 // Get comparative analytics across projects
 router.get('/comparative', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { metric = 'carbon_sequestration', period = 'year' } = req.query;
     
     const projects = await Project.find({

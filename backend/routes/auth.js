@@ -6,6 +6,7 @@ import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
+import connectDB from '../config/database.js'; // ADD THIS IMPORT
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -22,6 +23,8 @@ const generateToken = (userId) => {
 // Register with email/password
 router.post('/register', async (req, res) => {
   try {
+    await connectDB();
+
     const { email, password, name } = req.body;
 
     // Validation
@@ -48,8 +51,8 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password - FIX: Ensure it's a string
+    const hashedPassword = await bcrypt.hash(String(password), 12);
 
     // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -95,6 +98,8 @@ router.post('/register', async (req, res) => {
 // Login with email/password
 router.post('/login', async (req, res) => {
   try {
+    await connectDB();
+
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -113,8 +118,23 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Check if user has a password (might be OAuth user)
+    if (!user.password) {
+      return res.status(401).json({
+        error: 'Invalid credentials',
+        message: 'Please use Google login for this account'
+      });
+    }
+
+    // DEBUG: Check what we're comparing
+    console.log('Password comparison:', {
+      providedPassword: typeof password,
+      storedPassword: typeof user.password,
+      storedPasswordLength: user.password?.length
+    });
+
+    // Check password - FIX: Ensure both are strings
+    const isPasswordValid = await bcrypt.compare(String(password), String(user.password));
     if (!isPasswordValid) {
       return res.status(401).json({
         error: 'Invalid credentials',
@@ -151,6 +171,8 @@ router.post('/login', async (req, res) => {
 // Google OAuth
 router.post('/google', async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { token: googleToken } = req.body;
 
     if (!googleToken) {
@@ -218,6 +240,8 @@ router.post('/google', async (req, res) => {
 // Verify email
 router.post('/verify-email', async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { token } = req.body;
 
     if (!token) {
@@ -261,6 +285,8 @@ router.post('/verify-email', async (req, res) => {
 // Resend verification email
 router.post('/resend-verification', async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { email } = req.body;
 
     if (!email) {
@@ -309,6 +335,8 @@ router.post('/resend-verification', async (req, res) => {
 // Forgot password
 router.post('/forgot-password', async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { email } = req.body;
 
     if (!email) {
@@ -350,6 +378,8 @@ router.post('/forgot-password', async (req, res) => {
 // Reset password
 router.post('/reset-password', async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { token, password } = req.body;
 
     if (!token || !password) {
@@ -395,14 +425,25 @@ router.post('/reset-password', async (req, res) => {
 
 // Get current user profile
 router.get('/me', authenticateToken, async (req, res) => {
-  res.json({
-    user: req.user.getPublicProfile()
-  });
+  try {
+    await connectDB(); // ADD THIS LINE
+    res.json({
+      user: req.user.getPublicProfile()
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      error: 'Failed to get profile',
+      message: 'Could not retrieve user profile'
+    });
+  }
 });
 
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
+    await connectDB(); // ADD THIS LINE
+
     const { name, preferences } = req.body;
     const user = req.user;
 

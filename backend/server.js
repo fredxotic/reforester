@@ -1,17 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST
+dotenv.config();
+
+// Now import other modules
 import reforestRouter from './routes/reforest.js';
 import authRouter from './routes/auth.js';
 import projectRouter from './routes/projects.js';
-import analyticsRouter from './routes/analytics.js'; // ADD THIS LINE
-import connectDB from './config/database.js';
-
-// Load environment variables
-dotenv.config();
-
-// Connect to database
-connectDB();
+import analyticsRouter from './routes/analytics.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,8 +19,8 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://reforester.vercel.app',
-    'https://reforester-git-main-your-username.vercel.app',
-    'https://reforester-your-username.vercel.app'
+    'https://reforester-git-main-fredxotic.vercel.app',
+    'https://reforester-fredxotic.vercel.app'
   ],
   credentials: true
 }));
@@ -32,9 +30,9 @@ app.use(express.json());
 app.use('/api', reforestRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectRouter);
-app.use('/api/analytics', analyticsRouter); // ADD THIS LINE
+app.use('/api/analytics', analyticsRouter);
 
-// Health check endpoint
+// Health check endpoint (doesn't need DB)
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -43,7 +41,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint for Vercel
+// Root endpoint (doesn't need DB)
 app.get('/', (req, res) => {
   res.json({ 
     message: 'ReForester API is running!',
@@ -51,7 +49,7 @@ app.get('/', (req, res) => {
       analysis: '/api/reforest',
       auth: '/api/auth',
       projects: '/api/projects',
-      analytics: '/api/analytics', // ADD THIS LINE
+      analytics: '/api/analytics',
       health: '/health'
     }
   });
@@ -80,6 +78,6 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`🌳 ReForester backend running on port ${PORT}`);
     console.log(`🔐 Authentication endpoints available at /api/auth`);
     console.log(`📊 Project management available at /api/projects`);
-    console.log(`📈 Advanced analytics available at /api/analytics`); // ADD THIS LINE
+    console.log(`📈 Advanced analytics available at /api/analytics`);
   });
 }
