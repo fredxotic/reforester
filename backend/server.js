@@ -5,39 +5,22 @@ import dotenv from 'dotenv';
 // Load environment variables FIRST
 dotenv.config();
 
-// ✅ ADD THIS IMPORT - Database connection
+// ✅ Database connection
 import connectDB from './config/database.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ FIXED CORS CONFIGURATION - REPLACE YOUR CURRENT CORS
+// ✅ FIXED CORS CONFIGURATION - More permissive for development
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://reforester.vercel.app',
-      'https://reforester-git-main-fred-kaloki.vercel.app',
-      'https://reforester-fred-kaloki.vercel.app',
-      'https://reforester.netlify.app', 
-      'https://*.netlify.app'
-    ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // Allow any Vercel preview deployment
-      if (origin.includes('.vercel.app')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    }
-  },
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://reforester.vercel.app',
+    'https://reforester-git-main-fred-kaloki.vercel.app',
+    'https://reforester-fred-kaloki.vercel.app',
+    'https://reforester.netlify.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
@@ -49,20 +32,22 @@ app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Now import other modules
+// Import routes
 import reforestRouter from './routes/reforest.js';
 import authRouter from './routes/auth.js';
 import projectRouter from './routes/projects.js';
 import analyticsRouter from './routes/analytics.js';
+import speciesRouter from './routes/species.js'; // ADD THIS
 
-// Routes
-app.use('/api', reforestRouter);
+// ✅ FIXED ROUTE MOUNTING - Ensure all routes have /api prefix
+app.use('/api/reforest', reforestRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/species', speciesRouter); // ADD THIS
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// ✅ FIXED HEALTH CHECK - Add /api prefix
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'ReForester API is running',
@@ -70,8 +55,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
+// ✅ FIXED ROOT ENDPOINT - Add /api prefix
+app.get('/api', (req, res) => {
   res.json({ 
     message: 'ReForester API is running!',
     endpoints: {
@@ -79,7 +64,8 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       projects: '/api/projects',
       analytics: '/api/analytics',
-      health: '/health'
+      species: '/api/species',
+      health: '/api/health'
     }
   });
 });
@@ -101,29 +87,36 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler - MUST be last
 app.use('*', (req, res) => {
   res.status(404).json({ 
     error: 'Route not found',
-    path: req.originalUrl 
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+    availableEndpoints: [
+      'GET /api',
+      'GET /api/health',
+      'POST /api/auth/login',
+      'POST /api/auth/register',
+      'GET /api/projects',
+      'GET /api/analytics/overview'
+    ]
   });
 });
 
-// ✅ ADD THIS - Initialize database connection
+// Initialize database connection
 const startServer = async () => {
   try {
     await connectDB();
     console.log('✅ Database connected successfully');
     
-    // Only listen locally, not on Vercel
-    if (process.env.NODE_ENV !== 'production') {
-      app.listen(PORT, () => {
-        console.log(`🌳 ReForester backend running on port ${PORT}`);
-        console.log(`🔐 Authentication endpoints available at /api/auth`);
-        console.log(`📊 Project management available at /api/projects`);
-        console.log(`📈 Advanced analytics available at /api/analytics`);
-      });
-    }
+    app.listen(PORT, () => {
+      console.log(`🌳 ReForester backend running on port ${PORT}`);
+      console.log(`🔐 Authentication: /api/auth`);
+      console.log(`📊 Projects: /api/projects`);
+      console.log(`📈 Analytics: /api/analytics`);
+      console.log(`🌿 Species: /api/species`);
+      console.log(`🏥 Health: /api/health`);
+    });
   } catch (error) {
     console.error('❌ Failed to connect to database:', error.message);
     process.exit(1);

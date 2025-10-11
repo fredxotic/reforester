@@ -11,6 +11,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // ADD THIS FOR CORS
 });
 
 // Request interceptor
@@ -40,121 +41,24 @@ api.interceptors.response.use(
     
     if (error.response?.status === 401) {
       localStorage.removeItem('reforester_token');
+      localStorage.removeItem('reforester_user');
       window.dispatchEvent(new Event('authError'));
     }
     
     if (error.response) {
-      throw new Error(error.response.data.message || `Server error: ${error.response.status}`);
+      // Server responded with error status
+      const message = error.response.data?.message || 
+                     error.response.data?.error || 
+                     `Server error: ${error.response.status}`;
+      throw new Error(message);
     } else if (error.request) {
-      throw new Error('Network error: Could not connect to server');
+      // Request made but no response received
+      throw new Error('Network error: Could not connect to server. Please check your connection.');
     } else {
+      // Something else happened
       throw new Error('Request configuration error');
     }
   }
 );
-
-// ✅✅✅ CRITICAL: ALL ROUTES MUST HAVE /api PREFIX ✅✅✅
-export const authAPI = {
-  login: async (credentials) => {
-    const response = await api.post('/api/auth/login', credentials);
-    return response.data;
-  },
-  
-  register: async (userData) => {
-    const response = await api.post('/api/auth/register', userData);
-    return response.data;
-  },
-  
-  googleLogin: async (googleToken) => {
-    const response = await api.post('/api/auth/google', { token: googleToken });
-    return response.data;
-  },
-  
-  updateProfile: async (profileData) => {
-    const response = await api.put('/api/auth/profile', profileData);
-    return response.data;
-  },
-  
-  resendVerification: async (email) => {
-    const response = await api.post('/api/auth/resend-verification', { email });
-    return response.data;
-  },
-  
-  forgotPassword: async (email) => {
-    const response = await api.post('/api/auth/forgot-password', { email });
-    return response.data;
-  },
-  
-  resetPassword: async (token, password) => {
-    const response = await api.post('/api/auth/reset-password', { token, password });
-    return response.data;
-  },
-  
-  getProfile: async () => {
-    const response = await api.get('/api/auth/me');
-    return response.data;
-  }
-};
-
-export const reforestAPI = {
-  analyzeLocation: async (lat, lon) => {
-    const response = await api.post('/api/reforest', { lat, lon });
-    return response.data;
-  },
-  
-  healthCheck: async () => {
-    const response = await api.get('/health');
-    return response.data;
-  },
-  
-  downloadPDF: async (analysisData) => {
-    const response = await api.post('/api/download-pdf', { analysisData });
-    return response.data;
-  }
-};
-
-export const projectAPI = {
-  getProjects: async (params = {}) => {
-    const response = await api.get('/api/projects', { params });
-    return response.data;
-  },
-  
-  getProject: async (id) => {
-    const response = await api.get(`/api/projects/${id}`);
-    return response.data;
-  },
-  
-  createProject: async (projectData) => {
-    const response = await api.post('/api/projects', projectData);
-    return response.data;
-  },
-  
-  updateProject: async (id, projectData) => {
-    const response = await api.put(`/api/projects/${id}`, projectData);
-    return response.data;
-  },
-  
-  deleteProject: async (id) => {
-    const response = await api.delete(`/api/projects/${id}`);
-    return response.data;
-  }
-};
-
-export const analyticsAPI = {
-  getOverview: async () => {
-    const response = await api.get('/api/analytics/overview');
-    return response.data;
-  },
-  
-  getGrowthProjections: async (projectId) => {
-    const response = await api.get(`/api/analytics/project/${projectId}/growth-projections`);
-    return response.data;
-  },
-  
-  getCarbonTimeline: async (projectId) => {
-    const response = await api.get(`/api/analytics/project/${projectId}/carbon-timeline`);
-    return response.data;
-  }
-};
 
 export default api;
