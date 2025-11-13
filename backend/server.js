@@ -18,36 +18,28 @@ const server = createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // =================================================================
-// 🔐 CRITICAL SECURITY FIXES
+// 🔐 SECURITY & MIDDLEWARE
 // =================================================================
-
-// 1. HTTP Security Headers (Helmet) [Good Practice]
 app.use(helmet());
+app.use(cookieParser());
 
-// 2. Global Rate Limiting [Good Practice]
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `windowMs`
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Too many requests',
-      message: 'Too many requests from this IP, please try again after 15 minutes.'
-    });
-  }
 });
 app.use(limiter);
-
-// 3. Cookie Parser [Required for HTTP-only cookie JWT]
-app.use(cookieParser());
 
 // CORS Configuration
 app.use(cors({
   origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
     'https://reforester.vercel.app',
+    'https://reforester-git-main-fred-kaloki.vercel.app',
+    'https://reforester-fred-kaloki.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -70,7 +62,7 @@ import teamsRouter from './routes/teams.js';
 import chatRouter from './routes/chat.js';
 import collaborationRouter from './routes/collaboration.js';
 
-// Route mounting
+// ✅ FIXED: Route mounting with proper paths
 app.use('/api/reforest', reforestRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectRouter);
@@ -94,15 +86,15 @@ app.get('/api', (req, res) => {
   res.json({ 
     message: 'ReForester API is running!',
     endpoints: {
-      analysis: '/api/reforest',
-      auth: '/api/auth',
-      projects: '/api/projects',
-      analytics: '/api/analytics',
-      species: '/api/species',
-      teams: '/api/teams',
-      chat: '/api/chat',
-      collaboration: '/api/collaboration',
-      health: '/api/health'
+      analysis: 'POST /api/reforest',
+      auth: 'POST /api/auth/login, POST /api/auth/register, POST /api/auth/google',
+      projects: 'GET /api/projects, POST /api/projects',
+      analytics: 'GET /api/analytics/overview',
+      species: 'GET /api/species/popular, GET /api/species/search',
+      teams: 'GET /api/teams/my-teams, POST /api/teams',
+      chat: 'GET /api/chat/project/:projectId, POST /api/chat',
+      collaboration: 'POST /api/collaboration/share-project',
+      health: 'GET /api/health'
     }
   });
 });
@@ -124,7 +116,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler - MUST be after all routes
 app.use('*', (req, res) => {
   res.status(404).json({ 
     error: 'Route not found',
@@ -135,10 +127,15 @@ app.use('*', (req, res) => {
       'POST /api/reforest',
       'POST /api/auth/login',
       'POST /api/auth/register',
+      'POST /api/auth/google',
       'GET /api/projects',
+      'POST /api/projects',
       'GET /api/analytics/overview',
       'GET /api/teams/my-teams',
-      'GET /api/chat/project/:projectId'
+      'POST /api/teams',
+      'GET /api/chat/project/:projectId',
+      'POST /api/chat',
+      'POST /api/collaboration/share-project'
     ]
   });
 });
@@ -149,35 +146,28 @@ const startServer = async () => {
     await connectDB();
     console.log('✅ Database connected successfully');
     
-    // ⚠️ CRITICAL SECURITY FIX: Ensure JWT_SECRET exists
     if (!process.env.JWT_SECRET) {
-        throw new Error('❌ FATAL: JWT_SECRET environment variable is not defined. Server cannot start securely.');
+      throw new Error('❌ JWT_SECRET environment variable is not defined');
     }
 
     // Initialize Socket Service
     new SocketService(server);
     console.log('✅ WebSocket service initialized');
 
-    server.listen(PORT, () => {
-      console.log(`🌳 ReForester backend running on port ${PORT}`);
-      console.log(`📍 Analysis: POST /api/reforest`);
-      console.log(`🔐 Authentication: /api/auth`);
-      console.log(`📊 Projects: /api/projects`);
-      console.log(`📈 Analytics: /api/analytics`);
-      console.log(`🌿 Species: /api/species`);
-      console.log(`👥 Teams: /api/teams`);
-      console.log(`💬 Chat: /api/chat`);
-      console.log(`🤝 Collaboration: /api/collaboration`);
-      console.log(`🏥 Health: /api/health`);
-      console.log(`🔌 WebSocket: Enabled on port ${PORT}`);
-    });
+    // Only listen if not in Vercel
+    if (process.env.NODE_ENV !== 'production') {
+      server.listen(PORT, () => {
+        console.log(`🌳 ReForester backend running on port ${PORT}`);
+        console.log(`🔌 WebSocket: Enabled on port ${PORT}`);
+      });
+    }
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
     process.exit(1);
   }
 };
 
-// Start the server
 startServer();
 
+// ✅ VERCEL REQUIREMENT: Export the app
 export default app;
