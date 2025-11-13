@@ -48,9 +48,6 @@ app.use(cors({
     'http://localhost:3000',
     'http://localhost:5173',
     'https://reforester.vercel.app',
-    'https://reforester-git-main-fred-kaloki.vercel.app',
-    'https://reforester-fred-kaloki.vercel.app',
-    'https://reforester.netlify.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
