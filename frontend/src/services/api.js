@@ -2,7 +2,10 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api-reforester.vercel.app';
 
-console.log('🔧 API Base URL:', API_BASE_URL);
+// ⚠️ ENHANCEMENT: Conditional Logging
+if (import.meta.env.DEV) {
+  console.log('🔧 API Base URL:', API_BASE_URL);
+}
 
 // Create axios instance with default config
 const api = axios.create({
@@ -11,21 +14,24 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true, // IMPORTANT: Sends HTTP-only cookie automatically
 });
 
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('reforester_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // ⚠️ SECURITY FIX: Removed token storage/retrieval logic from client-side
+    // The browser automatically sends the secure 'jwt' cookie due to withCredentials: true
+
+    if (import.meta.env.DEV) {
+        console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     }
-    console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
-    console.error('❌ API Request Error:', error);
+    if (import.meta.env.DEV) {
+        console.error('❌ API Request Error:', error);
+    }
     return Promise.reject(error);
   }
 );
@@ -33,15 +39,20 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+    if (import.meta.env.DEV) {
+        console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+    }
     return response;
   },
   (error) => {
-    console.error('❌ API Response Error:', error.response?.status, error.config?.url);
+    if (import.meta.env.DEV) {
+        console.error('❌ API Response Error:', error.response?.status, error.config?.url);
+    }
     
+    // Handle 401 Unauthorized globally
     if (error.response?.status === 401) {
-      localStorage.removeItem('reforester_token');
-      localStorage.removeItem('reforester_user');
+      // ⚠️ SECURITY FIX: Removed localStorage token cleanup
+      // Dispatch a custom event for AuthContext to catch and handle app-wide logout/redirect
       window.dispatchEvent(new Event('authError'));
     }
     
@@ -49,7 +60,12 @@ api.interceptors.response.use(
       const message = error.response.data?.message || 
                      error.response.data?.error || 
                      `Server error: ${error.response.status}`;
-      throw new Error(message);
+                     
+      // ⚠️ ENHANCEMENT: Attach original response to error object
+      // This allows components like Login.jsx to check for custom error codes (e.g., EMAIL_UNVERIFIED)
+      const customError = new Error(message);
+      customError.response = error.response;
+      throw customError;
     } else if (error.request) {
       throw new Error('Network error: Could not connect to server. Please check your connection.');
     } else {

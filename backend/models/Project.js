@@ -150,6 +150,10 @@ const projectSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  collaborations: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Collaboration'
+  }],
   images: [{
     url: String,
     caption: String,

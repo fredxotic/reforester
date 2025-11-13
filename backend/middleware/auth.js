@@ -4,19 +4,26 @@ import connectDB from '../config/database.js';
 
 const authenticateToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    // ⚠️ SECURITY FIX: Retrieve token from HTTP-only cookie first
+    let token = req.cookies.jwt;
+    
+    // Fallback: Check Authorization header (for mobile/external clients)
+    if (!token) {
+      const authHeader = req.headers['authorization'];
+      token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    }
 
     if (!token) {
       return res.status(401).json({
         error: 'Access denied',
-        message: 'No token provided'
+        message: 'No authorization token provided'
       });
     }
 
-    // Ensure JWT secret is available
+    // JWT_SECRET must be defined (checked in server.js, but kept here for safety)
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET is not defined in environment variables');
+      res.clearCookie('jwt'); // Clear token attempt
       return res.status(500).json({
         error: 'Server configuration error',
         message: 'Authentication service unavailable'
@@ -30,6 +37,7 @@ const authenticateToken = async (req, res, next) => {
     const user = await User.findById(decoded.userId);
     
     if (!user) {
+      res.clearCookie('jwt'); // Clear invalid token from client
       return res.status(401).json({
         error: 'Invalid token',
         message: 'User not found'
@@ -40,6 +48,9 @@ const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
+    
+    // Clear cookie on any token error (invalid or expired)
+    res.clearCookie('jwt');
     
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({

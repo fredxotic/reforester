@@ -1,27 +1,58 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import rateLimit from 'express-rate-limit'; // ⚠️ NEW IMPORT
 import User from '../models/User.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js';
-import connectDB from '../config/database.js'; // ADD THIS IMPORT
+import connectDB from '../config/database.js';
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign(
+// ⚠️ ENHANCEMENT: Authentication Rate Limiter
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 login/register/resend requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many attempts',
+    message: 'Too many requests, please try again after 15 minutes.'
+  }
+});
+
+// ⚠️ SECURITY FIX: Centralized Token Generation and Cookie Setting
+const generateTokenAndSetCookie = (userId, res) => {
+  // CRITICAL FIX: Ensure JWT_SECRET is available (checked in server.js startup, but good to re-check)
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+      throw new Error('JWT_SECRET is not defined. Cannot generate token securely.');
+  }
+
+  const token = jwt.sign(
     { userId }, 
-    process.env.JWT_SECRET || 'fallback-secret',
-    { expiresIn: '7d' }
+    secret,
+    { expiresIn: '7d' } // Expires in 7 days
   );
+
+  const cookieOptions = {
+    httpOnly: true, // 🔐 CRITICAL FIX: Prevents client-side JS access (XSS defense)
+    secure: process.env.NODE_ENV === 'production', // Use secure in production
+    sameSite: 'Lax', // Protects against some CSRF attacks
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+  };
+
+  // Set the JWT in an HTTP-only cookie
+  res.cookie('jwt', token, cookieOptions);
+  
+  // Return the token as well, for the initial successful login response body
+  return token;
 };
 
 // Register with email/password
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     await connectDB();
 
@@ -51,16 +82,11 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Hash password - FIX: Ensure it's a string
-    const hashedPassword = await bcrypt.hash(String(password), 12);
-
-    // Generate verification token
+    // Create user - Hashing handled by User.pre('save') hook (FIX: Removed manual hashing)
     const verificationToken = crypto.randomBytes(32).toString('hex');
-
-    // Create user
     const user = new User({
       email: email.toLowerCase(),
-      password: hashedPassword,
+      password, // Plain password is set, hook handles hashing before save
       name,
       verificationToken,
       emailVerified: false
@@ -73,11 +99,10 @@ router.post('/register', async (req, res) => {
       await sendVerificationEmail(user.email, verificationToken, user.name);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
-      // Continue even if email fails
     }
 
-    // Generate token (but user needs to verify email)
-    const token = generateToken(user._id);
+    // Generate token and set cookie
+    const token = generateTokenAndSetCookie(user._id, res);
 
     res.status(201).json({
       message: 'User registered successfully. Please check your email for verification.',
@@ -96,7 +121,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login with email/password
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     await connectDB();
 
@@ -126,15 +151,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // DEBUG: Check what we're comparing
-    console.log('Password comparison:', {
-      providedPassword: typeof password,
-      storedPassword: typeof user.password,
-      storedPasswordLength: user.password?.length
-    });
-
-    // Check password - FIX: Ensure both are strings
-    const isPasswordValid = await bcrypt.compare(String(password), String(user.password));
+    // Check password - FIX: Use comparePassword method
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         error: 'Invalid credentials',
@@ -144,14 +162,16 @@ router.post('/login', async (req, res) => {
 
     // Check if email is verified
     if (!user.emailVerified) {
+      // ⚠️ ENHANCEMENT: Use a structured error code for frontend to reliably check
       return res.status(403).json({
         error: 'Email not verified',
-        message: 'Please verify your email address before logging in'
+        message: 'Please verify your email address before logging in',
+        errorCode: 'EMAIL_UNVERIFIED' // Specific code for the frontend
       });
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate token and set cookie
+    const token = generateTokenAndSetCookie(user._id, res);
 
     res.json({
       message: 'Login successful',
@@ -168,10 +188,21 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ⚠️ NEW ENDPOINT: Logout to clear the secure cookie
+router.post('/logout', (req, res) => {
+  res.clearCookie('jwt', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+  });
+  
+  res.json({ message: 'Logout successful' });
+});
+
 // Google OAuth
-router.post('/google', async (req, res) => {
+router.post('/google', authLimiter, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
 
     const { token: googleToken } = req.body;
 
@@ -219,8 +250,8 @@ router.post('/google', async (req, res) => {
       await user.save();
     }
 
-    // Generate JWT token
-    const token = generateToken(user._id);
+    // Generate token and set cookie
+    const token = generateTokenAndSetCookie(user._id, res);
 
     res.json({
       message: 'Google authentication successful',
@@ -240,7 +271,7 @@ router.post('/google', async (req, res) => {
 // Verify email
 router.post('/verify-email', async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
 
     const { token } = req.body;
 
@@ -264,8 +295,8 @@ router.post('/verify-email', async (req, res) => {
     user.verificationToken = null;
     await user.save();
 
-    // Generate new token
-    const authToken = generateToken(user._id);
+    // Generate new token and set cookie
+    const authToken = generateTokenAndSetCookie(user._id, res);
 
     res.json({
       message: 'Email verified successfully',
@@ -283,9 +314,9 @@ router.post('/verify-email', async (req, res) => {
 });
 
 // Resend verification email
-router.post('/resend-verification', async (req, res) => {
+router.post('/resend-verification', authLimiter, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
 
     const { email } = req.body;
 
@@ -333,9 +364,9 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 // Forgot password
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', authLimiter, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
 
     const { email } = req.body;
 
@@ -378,7 +409,7 @@ router.post('/forgot-password', async (req, res) => {
 // Reset password
 router.post('/reset-password', async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
 
     const { token, password } = req.body;
 
@@ -405,10 +436,11 @@ router.post('/reset-password', async (req, res) => {
     }
 
     // Update password
-    const hashedPassword = await bcrypt.hash(password, 12);
-    user.password = hashedPassword;
+    user.password = password; // Pre-save hook will hash this
     user.verificationToken = null;
-    await user.save();
+    
+    // Trigger the pre-save hook
+    await user.save(); 
 
     res.json({
       message: 'Password reset successfully'
@@ -426,7 +458,7 @@ router.post('/reset-password', async (req, res) => {
 // Get current user profile
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
     res.json({
       user: req.user.getPublicProfile()
     });
@@ -442,7 +474,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 // Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    await connectDB(); // ADD THIS LINE
+    await connectDB();
 
     const { name, preferences } = req.body;
     const user = req.user;

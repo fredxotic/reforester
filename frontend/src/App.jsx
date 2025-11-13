@@ -7,7 +7,11 @@ import SpeciesDatabase from './components/SpeciesDatabase';
 import ProjectDashboard from './components/projects/ProjectDashboard';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard';
 import UserProfile from './components/auth/UserProfile';
+import TeamDashboard from './components/teams/TeamDashboard';
+import TeamDetail from './components/teams/TeamDetail';
+import CommunityHub from './components/community/CommunityHub';
 import AuthModal from './components/auth/AuthModal';
+import AuthRequiredView from './components/common/AuthRequiredView';
 import { useAuth } from './contexts/AuthContext';
 
 function App() {
@@ -58,7 +62,7 @@ function App() {
 
   const handleViewChange = (view) => {
     // Require authentication for protected views
-    if (['projects', 'analytics', 'account'].includes(view) && !isAuthenticated) {
+    if (['projects', 'analytics', 'account', 'teams', 'community'].includes(view) && !isAuthenticated) {
       setAuthModalOpen(true);
       return;
     }
@@ -89,74 +93,63 @@ function App() {
     switch (activeView) {
       case 'species':
         return <SpeciesDatabase />;
+
+      case 'team-detail':
+        return <TeamDetail />;
       
       case 'projects':
         return isAuthenticated ? (
           <ProjectDashboard />
         ) : (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-32 h-32 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔒</span>
-              </div>
-              <h2 className="text-3xl font-bold text-amber-900 mb-4">Authentication Required</h2>
-              <p className="text-amber-700 text-lg mb-6">
-                Please sign in to access your projects.
-              </p>
-              <button
-                onClick={() => setAuthModalOpen(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
+          <AuthRequiredView 
+            title="Project Management"
+            description="Manage your reforestation projects"
+            onAuth={() => setAuthModalOpen(true)}
+          />
         );
       
       case 'analytics':
         return isAuthenticated ? (
           <AnalyticsDashboard />
         ) : (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-32 h-32 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔒</span>
-              </div>
-              <h2 className="text-3xl font-bold text-amber-900 mb-4">Authentication Required</h2>
-              <p className="text-amber-700 text-lg mb-6">
-                Please sign in to access advanced analytics and growth projections.
-              </p>
-              <button
-                onClick={() => setAuthModalOpen(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
+          <AuthRequiredView 
+            title="Advanced Analytics"
+            description="Access growth projections and insights"
+            onAuth={() => setAuthModalOpen(true)}
+          />
+        );
+      
+      case 'teams':
+        return isAuthenticated ? (
+          <TeamDashboard />
+        ) : (
+          <AuthRequiredView 
+            title="Team Collaboration"
+            description="Create teams and collaborate on projects"
+            onAuth={() => setAuthModalOpen(true)}
+          />
+        );
+      
+      case 'community':
+        return isAuthenticated ? (
+          <CommunityHub />
+        ) : (
+          <AuthRequiredView 
+            title="Community Hub"
+            description="Connect with other reforestation enthusiasts"
+            onAuth={() => setAuthModalOpen(true)}
+          />
         );
       
       case 'account':
         return isAuthenticated ? (
           <UserProfile />
         ) : (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-32 h-32 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔒</span>
-              </div>
-              <h2 className="text-3xl font-bold text-amber-900 mb-4">Authentication Required</h2>
-              <p className="text-amber-700 text-lg mb-6">
-                Please sign in to access your account settings.
-              </p>
-              <button
-                onClick={() => setAuthModalOpen(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
+          <AuthRequiredView 
+            title="Account Settings"
+            description="Manage your profile and preferences"
+            onAuth={() => setAuthModalOpen(true)}
+          />
         );
       
       case 'map':
@@ -350,8 +343,8 @@ function App() {
                         <span>Project Management</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <span>📈</span>
-                        <span>Growth Analytics</span>
+                        <span>👥</span>
+                        <span>Team Collaboration</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <span>💾</span>

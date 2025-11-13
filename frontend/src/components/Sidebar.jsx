@@ -5,6 +5,8 @@ const Sidebar = ({ activeView, onViewChange, isOpen, onClose, isCollapsed, onTog
     { id: 'map', label: 'Map Analysis', icon: '🗺️', description: 'Analyze locations' },
     { id: 'species', label: 'Species Database', icon: '🌿', description: 'Browse tree species' },
     { id: 'projects', label: 'My Projects', icon: '📊', description: 'Manage reforestation projects' },
+    { id: 'teams', label: 'Teams', icon: '👥', description: 'Collaborate with teams' },
+    { id: 'community', label: 'Community', icon: '🌍', description: 'Connect with others' },
     { id: 'analytics', label: 'Analytics', icon: '📈', description: 'Growth projections & insights' },
     { id: 'account', label: 'Account', icon: '👤', description: 'Profile & settings' },
   ];
@@ -136,6 +138,37 @@ const Sidebar = ({ activeView, onViewChange, isOpen, onClose, isCollapsed, onTog
             </button>
           ))}
         </nav>
+
+        {/* Collaboration Status - Only show when not collapsed */}
+        {!isCollapsed && (
+          <div className="p-4 border-t border-emerald-200">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-4">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">👥</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-emerald-900">Team Collaboration</p>
+                  <p className="text-xs text-emerald-600">Real-time features enabled</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 text-xs text-emerald-600">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Chat</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Sharing</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Updates</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer - Only show when not collapsed */}
         {!isCollapsed && (

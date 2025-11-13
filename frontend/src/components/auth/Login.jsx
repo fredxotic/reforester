@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/authApi';
 
+// Assuming lucide-react or similar is used/available for icons
+const EyeIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>;
+const EyeOffIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.23 18.23 0 0 1 2.5-3.37m3.11-3.11A13.47 13.47 0 0 1 12 4c7 0 10 7 10 7a18.2 18.2 0 0 1-1.25 1.77M1 1l22 22"></path><line x1="10" y1="14" x2="14" y2="10"></line></svg>;
+
 const Login = ({ onSwitchToRegister, onClose }) => {
   const [formData, setFormData] = useState({
     email: '',
@@ -10,8 +14,10 @@ const Login = ({ onSwitchToRegister, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showResendVerification, setShowResendVerification] = useState(false);
+  // ⚠️ NEW STATE: Password visibility
+  const [showPassword, setShowPassword] = useState(false); 
   const [resendEmail, setResendEmail] = useState('');
+  const [showResendVerification, setShowResendVerification] = useState(false);
   const { login } = useAuth();
   
   const googleInitialized = useRef(false);
@@ -19,12 +25,10 @@ const Login = ({ onSwitchToRegister, onClose }) => {
 
   // Load and initialize Google OAuth
   useEffect(() => {
-    // Replace the Google OAuth initialization with this:
     const initializeGoogleOAuth = () => {
       if (googleInitialized.current || !window.google) return;
 
       try {
-        // ✅ FIX: Make sure VITE_GOOGLE_CLIENT_ID is set in your frontend environment
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
         
         if (!clientId) {
@@ -33,7 +37,9 @@ const Login = ({ onSwitchToRegister, onClose }) => {
           return;
         }
 
-        console.log('Initializing Google OAuth with client ID:', clientId.substring(0, 10) + '...');
+        if (import.meta.env.DEV) {
+            console.log('Initializing Google OAuth with client ID:', clientId.substring(0, 10) + '...');
+        }
 
         window.google.accounts.id.initialize({
           client_id: clientId,
@@ -48,7 +54,9 @@ const Login = ({ onSwitchToRegister, onClose }) => {
         renderGoogleButton();
 
       } catch (err) {
-        console.error('Google OAuth initialization failed:', err);
+        if (import.meta.env.DEV) {
+            console.error('Google OAuth initialization failed:', err);
+        }
         setError('Failed to initialize Google Sign-In.');
       }
     };
@@ -63,7 +71,7 @@ const Login = ({ onSwitchToRegister, onClose }) => {
             type: 'standard',
             theme: 'outline',
             size: 'large',
-            width: '100%',
+            width: '100%', // This might cause the warning, but it's acceptable
             text: 'continue_with',
             shape: 'rectangular',
             logo_alignment: 'left'
@@ -71,7 +79,9 @@ const Login = ({ onSwitchToRegister, onClose }) => {
           googleButtonRendered.current = true;
         }
       } catch (err) {
-        console.error('Google button render failed');
+        if (import.meta.env.DEV) {
+            console.error('Google button render failed');
+        }
       }
     };
 
@@ -113,15 +123,21 @@ const Login = ({ onSwitchToRegister, onClose }) => {
 
     try {
       const result = await authAPI.login(formData);
-      await login(result.user, result.token);
+      // NOTE: result.token might be absent since it's in an httpOnly cookie, 
+      // but the result.user object confirms successful login for the context.
+      await login(result.user, result.token); 
       onClose?.();
     } catch (err) {
-      // Check if it's an email verification error
-      if (err.message.includes('verify your email')) {
+      // ⚠️ ENHANCEMENT: Check for explicit errorCode (Non-fragile error handling)
+      const errorCode = err.response?.data?.errorCode; 
+      
+      if (errorCode === 'EMAIL_UNVERIFIED') {
         setResendEmail(formData.email);
+        setShowResendVerification(true);
         setError('Please verify your email address before logging in.');
       } else {
-        setError(err.message);
+        // Fallback to original message
+        setError(err.message || 'Login failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -141,11 +157,16 @@ const Login = ({ onSwitchToRegister, onClose }) => {
       await login(result.user, result.token);
       onClose?.();
     } catch (err) {
-      console.error('Google OAuth error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Google OAuth error:', err);
+      }
       
-      if (err.response?.data?.error) {
+      // Handle specific error cases
+      if (err.response?.data?.errorCode === 'EMAIL_UNVERIFIED') {
+        setError('Please verify your email address before logging in with Google.');
+      } else if (err.response?.data?.error) {
         setError(`Google authentication failed: ${err.response.data.error}`);
-      } else if (err.message?.includes('Network Error')) {
+      } else if (err.message?.includes('Network error')) {
         setError('Network error. Please check your connection.');
       } else {
         setError('Google authentication failed. Please try again.');
@@ -182,10 +203,14 @@ const Login = ({ onSwitchToRegister, onClose }) => {
       setLoading(false);
     }
   };
+  
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+  };
 
   const handleForgotPassword = () => {
-    setError('Please use the "Forgot Password" feature on the registration page.');
-    onSwitchToRegister?.();
+    // You can implement forgot password logic here
+    setError('Password reset feature coming soon. Please contact support for now.');
   };
 
   return (
@@ -196,7 +221,7 @@ const Login = ({ onSwitchToRegister, onClose }) => {
       </div>
 
       {/* Error Display */}
-      {error && (
+      {error && !error.includes('Verification email sent') && !showResendVerification && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
           <div className="flex items-start space-x-2 text-red-700">
             <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,27 +234,21 @@ const Login = ({ onSwitchToRegister, onClose }) => {
         </div>
       )}
 
-      {/* Resend Verification Section */}
-      {error && error.includes('verify your email') && !showResendVerification && (
-        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <div className="flex items-start space-x-2 text-amber-700">
+      {/* Success Message for Verification Email */}
+      {error.includes('Verification email sent') && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-start space-x-2 text-green-700">
             <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="flex-1">
-              <p className="font-medium mb-2">Email Verification Required</p>
-              <p className="text-sm mb-3">Check your email for the verification link. If you didn't receive it, we can send another one.</p>
-              <button
-                onClick={() => setShowResendVerification(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
-              >
-                Resend Verification Email
-              </button>
+              <span className="font-medium">{error}</span>
             </div>
           </div>
         </div>
       )}
 
+      {/* Resend Verification Section */}
       {showResendVerification && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
           <div className="flex items-start space-x-2 text-blue-700">
@@ -283,17 +302,33 @@ const Login = ({ onSwitchToRegister, onClose }) => {
           <label htmlFor="password" className="block text-sm font-medium text-emerald-700 mb-2">
             Password
           </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors placeholder-gray-400"
-            placeholder="Enter your password"
-            disabled={loading || googleLoading}
-          />
+          {/* ⚠️ ENHANCEMENT: Password toggle container */}
+          <div className="relative">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full px-4 pr-12 py-3 border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors placeholder-gray-400"
+              placeholder="Enter your password"
+              disabled={loading || googleLoading}
+            />
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              disabled={loading || googleLoading}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-emerald-600 disabled:text-gray-400 transition-colors focus:outline-none focus:ring-0"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? (
+                <EyeOffIcon className="w-5 h-5" />
+              ) : (
+                <EyeIcon className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         <button
