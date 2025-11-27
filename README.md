@@ -14,10 +14,6 @@
 2. **Register** a new account or use **Google OAuth**
 3. **Start analyzing** locations and managing reforestation projects
 
-A visual summary of ReForester’s mission, architecture, and impact is available as a 10-slide presentation:
-
-[https://www.canva.com/design/DAG1gswniX8/FjQAHAF3k7ZHxKl0G5wWcg/edit?utm_content=DAG1gswniX8&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton](https://www.canva.com/design/DAG1gswniX8/FjQAHAF3k7ZHxKl0G5wWcg/edit?utm_content=DAG1gswniX8&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
-
 ---
 
 ## 🚀 Key Features
