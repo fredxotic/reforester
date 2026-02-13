@@ -37,10 +37,12 @@ const generateTokenAndSetCookie = (userId, res) => {
     { expiresIn: '7d' } // Expires in 7 days
   );
 
+  const isProduction = process.env.NODE_ENV === 'production';
+
   const cookieOptions = {
-    httpOnly: true, // 🔐 CRITICAL FIX: Prevents client-side JS access (XSS defense)
-    secure: process.env.NODE_ENV === 'production', // Use secure in production
-    sameSite: 'Lax', // Protects against some CSRF attacks
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax', // 'None' required for cross-origin cookies in production
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
   };
 
@@ -190,10 +192,11 @@ router.post('/login', authLimiter, async (req, res) => {
 
 // ⚠️ NEW ENDPOINT: Logout to clear the secure cookie
 router.post('/logout', (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
   res.clearCookie('jwt', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax',
   });
   
   res.json({ message: 'Logout successful' });
