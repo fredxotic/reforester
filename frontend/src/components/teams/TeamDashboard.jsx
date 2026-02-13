@@ -5,9 +5,10 @@ import TeamCard from './TeamCard';
 import CreateTeamModal from './CreateTeamModal';
 import Loader from '../Loader';
 
-const TeamDashboard = () => {
+const TeamDashboard = ({ onViewTeam }) => {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { user } = useAuth();
 
@@ -19,8 +20,10 @@ const TeamDashboard = () => {
     try {
       const response = await teamAPI.getMyTeams();
       setTeams(response.teams);
-    } catch (error) {
-      console.error('Failed to load teams:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load teams:', err);
+      setError('Failed to load teams. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -82,6 +85,7 @@ const TeamDashboard = () => {
               key={team._id} 
               team={team} 
               onUpdate={loadTeams}
+              onViewTeam={onViewTeam}
             />
           ))}
         </div>

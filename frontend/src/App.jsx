@@ -13,6 +13,7 @@ import CommunityHub from './components/community/CommunityHub';
 import AuthModal from './components/auth/AuthModal';
 import AuthRequiredView from './components/common/AuthRequiredView';
 import { useAuth } from './contexts/AuthContext';
+import { reforestAPI } from './services/reforestApi';
 
 function App() {
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -23,6 +24,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState(null);
   
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
@@ -32,19 +34,7 @@ function App() {
     setSelectedLocation({ lat, lon });
     
     try {
-      const response = await fetch('/api/reforest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ lat, lon }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Analysis failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await reforestAPI.analyzeLocation(lat, lon);
       setAnalysisData(data);
     } catch (err) {
       setError(err.message);
@@ -95,7 +85,14 @@ function App() {
         return <SpeciesDatabase />;
 
       case 'team-detail':
-        return <TeamDetail />;
+        return selectedTeamId ? (
+          <TeamDetail 
+            teamId={selectedTeamId} 
+            onBack={() => { setSelectedTeamId(null); setActiveView('teams'); }} 
+          />
+        ) : (
+          <TeamDashboard onViewTeam={(id) => { setSelectedTeamId(id); setActiveView('team-detail'); }} />
+        );
       
       case 'projects':
         return isAuthenticated ? (
@@ -121,7 +118,7 @@ function App() {
       
       case 'teams':
         return isAuthenticated ? (
-          <TeamDashboard />
+          <TeamDashboard onViewTeam={(id) => { setSelectedTeamId(id); setActiveView('team-detail'); }} />
         ) : (
           <AuthRequiredView 
             title="Team Collaboration"

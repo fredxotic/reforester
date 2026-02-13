@@ -1,12 +1,19 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import cookie from 'cookie-parser';
 import User from '../models/User.js';
 
 class SocketService {
   constructor(server) {
     this.io = new Server(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:3000",
+        origin: [
+          'https://reforester.vercel.app',
+          'https://reforester-git-main-fred-kaloki.vercel.app',
+          'https://reforester-fred-kaloki.vercel.app',
+          'http://localhost:3000',
+          'http://localhost:5173'
+        ],
         methods: ["GET", "POST"],
         credentials: true
       }
@@ -20,19 +27,26 @@ class SocketService {
     this.io.use(this.authenticateSocket.bind(this));
     
     this.io.on('connection', (socket) => {
-      console.log(`User ${socket.userId} connected`);
       this.connectedUsers.set(socket.userId, socket.id);
 
       // Join project rooms
       socket.on('join-project', (projectId) => {
         socket.join(`project:${projectId}`);
-        console.log(`User ${socket.userId} joined project:${projectId}`);
+      });
+
+      // Leave project rooms
+      socket.on('leave-project', (projectId) => {
+        socket.leave(`project:${projectId}`);
       });
 
       // Join team rooms
       socket.on('join-team', (teamId) => {
         socket.join(`team:${teamId}`);
-        console.log(`User ${socket.userId} joined team:${teamId}`);
+      });
+
+      // Leave team rooms
+      socket.on('leave-team', (teamId) => {
+        socket.leave(`team:${teamId}`);
       });
 
       // Chat messages
@@ -72,14 +86,28 @@ class SocketService {
 
       socket.on('disconnect', () => {
         this.connectedUsers.delete(socket.userId);
-        console.log(`User ${socket.userId} disconnected`);
       });
     });
   }
 
   async authenticateSocket(socket, next) {
     try {
-      const token = socket.handshake.auth.token;
+      // Try cookie-based auth first
+      let token;
+      const cookieHeader = socket.handshake.headers.cookie;
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').reduce((acc, c) => {
+          const [key, val] = c.trim().split('=');
+          if (key && val) acc[key] = val;
+          return acc;
+        }, {});
+        token = cookies.jwt;
+      }
+
+      // Fallback to handshake auth token
+      if (!token) {
+        token = socket.handshake.auth.token;
+      }
       
       if (!token) {
         return next(new Error('Authentication error'));

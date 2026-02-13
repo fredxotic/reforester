@@ -1,6 +1,13 @@
 import express from 'express';
 import Project from '../models/Project.js';
 import { authenticateToken } from '../middleware/auth.js';
+import {
+  CARBON_CREDIT_RATE_USD,
+  CO2_PER_TREE_KG_YEAR,
+  DEFAULT_SURVIVAL_RATE,
+  MATURITY_YEARS,
+  CARBON_PAYBACK_YEARS
+} from '../constants/environment.js';
 
 const router = express.Router();
 
@@ -229,12 +236,12 @@ function generateGrowthProjections(project) {
     date.setFullYear(date.getFullYear() + year);
     
     // Carbon sequestration increases as trees mature
-    const maturityFactor = Math.min(1, year / 10); // Trees reach full maturity in 10 years
-    const survivalRate = project.analytics?.survivalRate || 85;
+    const maturityFactor = Math.min(1, year / MATURITY_YEARS);
+    const survivalRate = project.analytics?.survivalRate || DEFAULT_SURVIVAL_RATE;
     const survivingTrees = totalTrees * (survivalRate / 100);
     
-    // Average mature tree sequesters 22kg CO2 per year
-    const carbonSequestration = survivingTrees * 22 * maturityFactor / 1000; // tons
+    // Average mature tree sequesters CO2_PER_TREE_KG_YEAR kg CO2 per year
+    const carbonSequestration = survivingTrees * CO2_PER_TREE_KG_YEAR * maturityFactor / 1000; // tons
     
     // Tree height growth (simplified)
     const avgHeight = Math.min(25, 2 + (year * 2.3)); // meters
@@ -261,7 +268,7 @@ function generateCarbonTimeline(project) {
   const timeline = [];
   const startDate = new Date(project.timeline?.startDate || new Date());
   const totalTrees = project.analytics?.totalTrees || 0;
-  const survivalRate = project.analytics?.survivalRate || 85;
+  const survivalRate = project.analytics?.survivalRate || DEFAULT_SURVIVAL_RATE;
   
   let cumulativeCarbon = 0;
   
@@ -270,8 +277,8 @@ function generateCarbonTimeline(project) {
     date.setMonth(date.getMonth() + month);
     
     const year = month / 12;
-    const maturityFactor = Math.min(1, year / 10);
-    const annualCarbon = totalTrees * (survivalRate / 100) * 22 * maturityFactor / 1000;
+    const maturityFactor = Math.min(1, year / MATURITY_YEARS);
+    const annualCarbon = totalTrees * (survivalRate / 100) * CO2_PER_TREE_KG_YEAR * maturityFactor / 1000;
     cumulativeCarbon += annualCarbon;
     
     timeline.push({
@@ -377,8 +384,8 @@ function calculateFinancialAnalytics(project) {
   const carbonCost = (project.analytics?.estimatedCarbonSequestration || 0) > 0 ? 
     (actualCost || estimatedCost) / (project.analytics.estimatedCarbonSequestration || 1) : 0;
   
-  // Simplified ROI calculation (carbon credits @ $50/ton)
-  const carbonCreditValue = (project.analytics?.estimatedCarbonSequestration || 0) * 50;
+  // Simplified ROI calculation
+  const carbonCreditValue = (project.analytics?.estimatedCarbonSequestration || 0) * CARBON_CREDIT_RATE_USD;
   const roi = estimatedCost > 0 ? ((carbonCreditValue - estimatedCost) / estimatedCost) * 100 : 0;
   
   return {
@@ -398,7 +405,7 @@ function calculateFinancialAnalytics(project) {
       percentage: parseFloat(roi.toFixed(1)),
       netValue: parseFloat((carbonCreditValue - estimatedCost).toFixed(2)),
       paybackPeriod: estimatedCost > 0 ? 
-        parseFloat((estimatedCost / (carbonCreditValue / 20)).toFixed(1)) : 0 // 20-year carbon credit value
+        parseFloat((estimatedCost / (carbonCreditValue / CARBON_PAYBACK_YEARS)).toFixed(1)) : 0
     },
     recommendations: generateFinancialRecommendations(project, roi)
   };

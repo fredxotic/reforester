@@ -385,9 +385,10 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
       });
     }
 
-    // Generate reset token
+    // Generate reset token with 1-hour expiry
     const resetToken = crypto.randomBytes(32).toString('hex');
-    user.verificationToken = resetToken; // Reuse verificationToken field for reset
+    user.verificationToken = resetToken;
+    user.verificationTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await user.save();
 
     // Send reset email
@@ -435,9 +436,21 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
+    // Check if token has expired
+    if (user.verificationTokenExpiry && user.verificationTokenExpiry < new Date()) {
+      user.verificationToken = null;
+      user.verificationTokenExpiry = null;
+      await user.save();
+      return res.status(400).json({
+        error: 'Token expired',
+        message: 'Password reset link has expired. Please request a new one.'
+      });
+    }
+
     // Update password
     user.password = password; // Pre-save hook will hash this
     user.verificationToken = null;
+    user.verificationTokenExpiry = null;
     
     // Trigger the pre-save hook
     await user.save(); 

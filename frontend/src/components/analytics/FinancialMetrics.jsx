@@ -157,8 +157,8 @@ const FinancialMetrics = ({ data, project }) => {
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Carbon Credits', value: efficiency.carbonCreditValue },
-                    { name: 'Initial Cost', value: -financials.estimatedCost }
+                    { name: 'Carbon Credits', value: efficiency.carbonCreditValue, isPositive: true },
+                    { name: 'Initial Cost', value: financials.estimatedCost, isPositive: false }
                   ]}
                   cx="50%"
                   cy="50%"
@@ -168,16 +168,19 @@ const FinancialMetrics = ({ data, project }) => {
                   dataKey="value"
                 >
                   {[
-                    { name: 'Carbon Credits', value: efficiency.carbonCreditValue },
-                    { name: 'Initial Cost', value: -financials.estimatedCost }
+                    { name: 'Carbon Credits', value: efficiency.carbonCreditValue, isPositive: true },
+                    { name: 'Initial Cost', value: financials.estimatedCost, isPositive: false }
                   ].map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={entry.value >= 0 ? '#10b981' : '#ef4444'} 
+                      fill={entry.isPositive ? '#10b981' : '#ef4444'} 
                     />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Amount']} />
+                <Tooltip formatter={(value, name) => {
+                  const prefix = name === 'Initial Cost' ? '-' : '';
+                  return [`${prefix}$${value.toLocaleString()}`, name];
+                }} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

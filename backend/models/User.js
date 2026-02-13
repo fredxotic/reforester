@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    verificationTokenExpiry: {
+      type: Date,
+      default: null,
+    },
     password: {
       type: String,
       default: null,

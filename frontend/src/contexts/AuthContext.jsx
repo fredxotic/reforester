@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/authApi';
 
 const AuthContext = createContext();
@@ -14,42 +14,50 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('reforester_token'));
 
-  // Check if user is authenticated on app start
+  // Check if user is authenticated on app start via HTTP-only cookie
   useEffect(() => {
     const checkAuth = async () => {
-      if (token) {
-        try {
-          const userData = await authAPI.getCurrentUser();
-          setUser(userData);
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          localStorage.removeItem('reforester_token');
-          setToken(null);
-        }
+      try {
+        const userData = await authAPI.getCurrentUser();
+        setUser(userData);
+      } catch (error) {
+        // Cookie is invalid/expired or user not logged in - this is normal
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
-  }, [token]);
+  }, []);
 
-  const login = async (userData, authToken) => {
-    localStorage.setItem('reforester_token', authToken);
-    setToken(authToken);
+  // Listen for 401 errors from the API interceptor
+  useEffect(() => {
+    const handleAuthError = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('authError', handleAuthError);
+    return () => window.removeEventListener('authError', handleAuthError);
+  }, []);
+
+  const login = useCallback((userData) => {
     setUser(userData);
-  };
+  }, []);
 
-  const logout = () => {
-    localStorage.removeItem('reforester_token');
-    setToken(null);
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout();
+    } catch (e) {
+      // Logout locally even if server call fails
+    }
     setUser(null);
-  };
+  }, []);
 
-  const updateUser = (userData) => {
+  const updateUser = useCallback((userData) => {
     setUser(userData);
-  };
+  }, []);
 
   const value = {
     user,

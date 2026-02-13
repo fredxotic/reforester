@@ -11,6 +11,11 @@ import {
   Line,
   ComposedChart
 } from 'recharts';
+import {
+  CARBON_CREDIT_RATE_USD,
+  CO2_PER_CAR_TONS_YEAR,
+  CO2_PER_HOME_TONS_YEAR
+} from '../../../constants/environment';
 
 const CarbonTimelineChart = ({ data, project }) => {
   const CustomTooltip = ({ active, payload, label }) => {
@@ -50,7 +55,7 @@ const CarbonTimelineChart = ({ data, project }) => {
           </div>
           <div className="text-center p-3 bg-green-50 rounded-lg">
             <div className="text-lg font-bold text-green-900">
-              ${(data[data.length - 1]?.cumulativeCarbon * 50).toLocaleString()}
+              ${(data[data.length - 1]?.cumulativeCarbon * CARBON_CREDIT_RATE_USD).toLocaleString()}
             </div>
             <div className="text-xs text-green-600">Carbon Credit Value</div>
           </div>
@@ -107,13 +112,13 @@ const CarbonTimelineChart = ({ data, project }) => {
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-700">Cars removed from road</span>
               <span className="font-semibold text-gray-900">
-                {(data[data.length - 1]?.cumulativeCarbon / 4.6).toFixed(0)}
+                {(data[data.length - 1]?.cumulativeCarbon / CO2_PER_CAR_TONS_YEAR).toFixed(0)}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <span className="text-gray-700">Homes powered for a year</span>
               <span className="font-semibold text-gray-900">
-                {(data[data.length - 1]?.cumulativeCarbon / 12).toFixed(0)}
+                {(data[data.length - 1]?.cumulativeCarbon / CO2_PER_HOME_TONS_YEAR).toFixed(0)}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -130,25 +135,25 @@ const CarbonTimelineChart = ({ data, project }) => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-blue-700">Current Market Rate:</span>
-              <span className="font-semibold text-blue-900">$50/ton</span>
+              <span className="font-semibold text-blue-900">${CARBON_CREDIT_RATE_USD}/ton</span>
             </div>
             <div className="flex justify-between">
               <span className="text-blue-700">Annual Credit Value:</span>
               <span className="font-semibold text-blue-900">
-                ${(data[data.length - 1]?.annualCarbon * 50).toLocaleString()}
+                ${(data[data.length - 1]?.annualCarbon * CARBON_CREDIT_RATE_USD).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-blue-700">Total Project Value:</span>
               <span className="font-semibold text-blue-900">
-                ${(data[data.length - 1]?.cumulativeCarbon * 50).toLocaleString()}
+                ${(data[data.length - 1]?.cumulativeCarbon * CARBON_CREDIT_RATE_USD).toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between border-t border-blue-200 pt-2">
               <span className="text-blue-700">Payback Period:</span>
               <span className="font-semibold text-blue-900">
                 {project.budget?.estimatedCost ? 
-                  (project.budget.estimatedCost / (data[data.length - 1]?.annualCarbon * 50)).toFixed(1) + ' years' : 
+                  (project.budget.estimatedCost / (data[data.length - 1]?.annualCarbon * CARBON_CREDIT_RATE_USD)).toFixed(1) + ' years' : 
                   'N/A'
                 }
               </span>

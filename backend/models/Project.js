@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { CO2_PER_TREE_KG_YEAR } from '../constants/environment.js';
 
 const projectSchema = new mongoose.Schema({
   name: {
@@ -195,8 +196,7 @@ projectSchema.pre('save', function(next) {
   }
 
   // Calculate estimated carbon sequestration (simplified)
-  // Average mature tree absorbs ~22 kg CO2 per year
-  this.analytics.estimatedCarbonSequestration = (this.analytics.totalTrees * 22) / 1000; // Convert to tons
+  this.analytics.estimatedCarbonSequestration = (this.analytics.totalTrees * CO2_PER_TREE_KG_YEAR) / 1000; // Convert to tons
 
   // Calculate overall survival rate
   const totalSurvival = this.species.reduce((sum, species) => {

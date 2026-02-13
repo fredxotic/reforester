@@ -1,33 +1,53 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { chatAPI } from '../../services/chatApi';
 import { useSocket } from '../../contexts/SocketContext';
 import { useAuth } from '../../contexts/AuthContext';
+
+const TYPING_THROTTLE_MS = 2000;
 
 const ChatPanel = ({ projectId, teamId }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState(null);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const messagesEndRef = useRef(null);
-  const { socket, isConnected } = useSocket();
+  const typingTimerRef = useRef(null);
+  const lastTypingEmitRef = useRef(0);
+  const { socket, isConnected, leaveProject, leaveTeam } = useSocket();
   const { user } = useAuth();
 
   const chatId = projectId || teamId;
   const chatType = projectId ? 'project' : 'team';
 
   useEffect(() => {
+    if (!chatId) return;
+
+    setLoading(true);
+    setError(null);
     loadMessages();
     setupSocketListeners();
     
     return () => {
+      // Leave the room on cleanup
+      if (projectId) {
+        leaveProject?.(projectId);
+      } else if (teamId) {
+        leaveTeam?.(teamId);
+      }
+      // Remove listeners
       if (socket) {
         socket.off('new-message');
         socket.off('user-typing');
         socket.off('user-stop-typing');
       }
+      // Clear typing timer
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current);
+      }
     };
-  }, [chatId]);
+  }, [chatId, socket]);
 
   useEffect(() => {
     scrollToBottom();
@@ -40,8 +60,10 @@ const ChatPanel = ({ projectId, teamId }) => {
         : await chatAPI.getTeamMessages(chatId);
       
       setMessages(response.messages);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+      setError('Failed to load messages. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +86,7 @@ const ChatPanel = ({ projectId, teamId }) => {
 
     // Typing indicators
     socket.on('user-typing', (data) => {
-      if (data.userId !== user._id) {
+      if (data.userId !== user?._id) {
         setTypingUsers(prev => new Set(prev).add(data.userId));
       }
     });
@@ -83,6 +105,7 @@ const ChatPanel = ({ projectId, teamId }) => {
     if (!newMessage.trim() || sending) return;
 
     setSending(true);
+    setError(null);
     
     try {
       const messageData = {
@@ -97,29 +120,48 @@ const ChatPanel = ({ projectId, teamId }) => {
       } else {
         // Fallback to HTTP API
         await chatAPI.sendMessage(messageData);
-        await loadMessages(); // Reload to get the new message
+        await loadMessages();
       }
 
       setNewMessage('');
       stopTyping();
-    } catch (error) {
-      console.error('Failed to send message:', error);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      setError('Failed to send message. Please try again.');
     } finally {
       setSending(false);
     }
   };
 
-  const handleTyping = () => {
-    if (socket && isConnected) {
-      socket.emit('typing-start', { projectId, teamId });
-    }
-  };
+  // Throttled typing indicator - avoids emitting on every keystroke
+  const handleTyping = useCallback(() => {
+    if (!socket || !isConnected) return;
 
-  const stopTyping = () => {
+    const now = Date.now();
+    if (now - lastTypingEmitRef.current > TYPING_THROTTLE_MS) {
+      socket.emit('typing-start', { projectId, teamId });
+      lastTypingEmitRef.current = now;
+    }
+
+    // Auto stop-typing after inactivity
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    typingTimerRef.current = setTimeout(() => {
+      stopTyping();
+    }, TYPING_THROTTLE_MS);
+  }, [socket, isConnected, projectId, teamId]);
+
+  const stopTyping = useCallback(() => {
     if (socket && isConnected) {
       socket.emit('typing-stop', { projectId, teamId });
     }
-  };
+    lastTypingEmitRef.current = 0;
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = null;
+    }
+  }, [socket, isConnected, projectId, teamId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -154,6 +196,14 @@ const ChatPanel = ({ projectId, teamId }) => {
         )}
       </div>
 
+      {/* Error Banner */}
+      {error && (
+        <div className="px-4 py-2 bg-red-50 text-red-700 text-sm border-b border-red-200 flex justify-between items-center">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold ml-2">&times;</button>
+        </div>
+      )}
+
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
         {messages.length === 0 ? (
@@ -165,16 +215,16 @@ const ChatPanel = ({ projectId, teamId }) => {
           messages.map((message) => (
             <div
               key={message._id}
-              className={`flex ${message.sender._id === user._id ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.sender._id === user?._id ? 'justify-end' : 'justify-start'}`}
             >
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                  message.sender._id === user._id
+                  message.sender._id === user?._id
                     ? 'bg-emerald-600 text-white rounded-br-none'
                     : 'bg-emerald-100 text-emerald-900 rounded-bl-none'
                 }`}
               >
-                {message.sender._id !== user._id && (
+                {message.sender._id !== user?._id && (
                   <div className="text-xs font-medium text-emerald-700 mb-1">
                     {message.sender.name}
                   </div>
@@ -182,7 +232,7 @@ const ChatPanel = ({ projectId, teamId }) => {
                 <div className="text-sm">{message.content}</div>
                 <div
                   className={`text-xs mt-1 ${
-                    message.sender._id === user._id
+                    message.sender._id === user?._id
                       ? 'text-emerald-200'
                       : 'text-emerald-600'
                   }`}

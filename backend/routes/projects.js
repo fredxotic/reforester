@@ -1,7 +1,8 @@
 import express from 'express';
 import Project from '../models/Project.js';
-import User from '../models/User.js'; // ADD THIS IMPORT
+import User from '../models/User.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { O2_PER_TREE_KG_YEAR } from '../constants/environment.js';
 
 const router = express.Router();
 
@@ -477,7 +478,7 @@ router.get('/:id/analytics', authenticateToken, async (req, res) => {
       timelineProgress: project.analytics?.progress || 0,
       environmentalImpact: {
         carbonSequestration: project.analytics?.estimatedCarbonSequestration || 0,
-        oxygenProduction: (project.analytics?.totalTrees || 0) * 260, // kg per year per tree
+        oxygenProduction: (project.analytics?.totalTrees || 0) * O2_PER_TREE_KG_YEAR, // kg per year per tree
         soilConservation: (project.analytics?.areaCovered || 0) * 10 // arbitrary soil conservation score
       }
     };

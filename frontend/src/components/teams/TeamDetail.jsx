@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import { teamAPI } from '../../services/teamApi';
 import { collaborationAPI } from '../../services/collaborationApi';
 import { useAuth } from '../../contexts/AuthContext';
 import ChatPanel from '../chat/ChatPanel';
 import Loader from '../Loader';
 
-const TeamDetail = () => {
-  const { teamId } = useParams();
+const TeamDetail = ({ teamId, onBack }) => {
   const [team, setTeam] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const { user } = useAuth();
 
@@ -19,12 +18,18 @@ const TeamDetail = () => {
   }, [teamId]);
 
   const loadTeamData = async () => {
+    if (!teamId) {
+      setError('No team selected');
+      setLoading(false);
+      return;
+    }
     try {
       const response = await teamAPI.getTeam(teamId);
       setTeam(response.team);
       setProjects(response.projects || []);
-    } catch (error) {
-      console.error('Failed to load team:', error);
+    } catch (err) {
+      console.error('Failed to load team:', err);
+      setError(err.message || 'Failed to load team');
     } finally {
       setLoading(false);
     }

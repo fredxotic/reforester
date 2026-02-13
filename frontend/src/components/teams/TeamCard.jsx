@@ -1,9 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-const TeamCard = ({ team, onUpdate }) => {
+const TeamCard = ({ team, onUpdate, onViewTeam }) => {
+  const { user } = useAuth();
   const memberCount = team.members.filter(m => m.status === 'active').length;
   const projectCount = team.projects?.length || 0;
+  const isOwner = user && team.owner?._id === user._id;
 
   return (
     <div className="card hover:shadow-lg transition-shadow duration-300">
@@ -25,7 +27,7 @@ const TeamCard = ({ team, onUpdate }) => {
               {team.name}
             </h3>
             <p className="text-emerald-600 text-sm">
-              {team.owner._id === team.owner?._id ? 'You own this team' : `Owned by ${team.owner?.name}`}
+              {isOwner ? 'You own this team' : `Owned by ${team.owner?.name}`}
             </p>
           </div>
         </div>
@@ -86,12 +88,12 @@ const TeamCard = ({ team, onUpdate }) => {
       </div>
 
       <div className="flex space-x-2">
-        <Link
-          to={`/teams/${team._id}`}
+        <button
+          onClick={() => onViewTeam && onViewTeam(team._id)}
           className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-2 px-4 rounded-lg transition-colors text-sm font-medium"
         >
           View Team
-        </Link>
+        </button>
       </div>
     </div>
   );

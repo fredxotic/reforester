@@ -1,4 +1,11 @@
 import React from 'react';
+import {
+  CARBON_CREDIT_RATE_USD,
+  CO2_PER_TREE_KG_YEAR,
+  O2_PER_TREE_KG_YEAR,
+  CO2_PER_CAR_TONS_YEAR,
+  CO2_PER_HOME_TONS_YEAR
+} from '../../constants/environment';
 
 const AnalyticsOverview = ({ overview, projects }) => {
   const { 
@@ -10,10 +17,10 @@ const AnalyticsOverview = ({ overview, projects }) => {
 
   // Calculate environmental impact
   const environmentalImpact = {
-    carbonEquivalent: (stats.totalCarbon * 1000) / 22, // trees equivalent
-    carsOffRoad: stats.totalCarbon / 4.6, // average car emissions per year
-    homesPowered: stats.totalCarbon / 12, // average home electricity emissions
-    oxygenProduction: stats.totalTrees * 260 / 1000 // tons of oxygen per year
+    carbonEquivalent: (stats.totalCarbon * 1000) / CO2_PER_TREE_KG_YEAR, // trees equivalent
+    carsOffRoad: stats.totalCarbon / CO2_PER_CAR_TONS_YEAR,
+    homesPowered: stats.totalCarbon / CO2_PER_HOME_TONS_YEAR,
+    oxygenProduction: stats.totalTrees * O2_PER_TREE_KG_YEAR / 1000 // tons of oxygen per year
   };
 
   return (
@@ -158,7 +165,7 @@ const AnalyticsOverview = ({ overview, projects }) => {
           <h4 className="font-semibold text-green-900 mb-3">💰 Carbon Credit Value</h4>
           <p className="text-green-700 text-sm">
             Estimated carbon credit value:{' '}
-            <strong>${(stats.totalCarbon * 50).toLocaleString()}</strong>{' '}
+            <strong>${(stats.totalCarbon * CARBON_CREDIT_RATE_USD).toLocaleString()}</strong>{' '}
             per year at current market rates.
           </p>
         </div>

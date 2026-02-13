@@ -11,6 +11,7 @@ import {
   Area,
   ComposedChart
 } from 'recharts';
+import { CO2_PER_CAR_TONS_YEAR, O2_PER_TREE_KG_YEAR } from '../../../constants/environment';
 
 const GrowthChart = ({ data, project }) => {
   // Custom tooltip
@@ -155,8 +156,8 @@ const GrowthChart = ({ data, project }) => {
           <h4 className="font-semibold text-green-900 mb-3">💨 Environmental Impact</h4>
           <ul className="text-green-700 text-sm space-y-2">
             <li>• 20-year carbon total: {(data.reduce((sum, year) => sum + year.carbonSequestration, 0)).toFixed(0)} tons</li>
-            <li>• Equivalent to {((data.reduce((sum, year) => sum + year.carbonSequestration, 0)) / 4.6).toFixed(0)} cars off the road</li>
-            <li>• Produces {(data[data.length - 1]?.survivingTrees * 260 / 1000).toFixed(0)} tons of oxygen annually</li>
+            <li>• Equivalent to {((data.reduce((sum, year) => sum + year.carbonSequestration, 0)) / CO2_PER_CAR_TONS_YEAR).toFixed(0)} cars off the road</li>
+            <li>• Produces {(data[data.length - 1]?.survivingTrees * O2_PER_TREE_KG_YEAR / 1000).toFixed(0)} tons of oxygen annually</li>
           </ul>
         </div>
       </div>

@@ -1,9 +1,8 @@
 import api from './api';
 
 export const collaborationAPI = {
-  // Share project with team
   shareProject: async (projectId, teamId, permissions) => {
-    const response = await api.post('/collaboration/share-project', {
+    const response = await api.post('/api/collaboration/share-project', {
       projectId,
       teamId,
       permissions
@@ -11,23 +10,20 @@ export const collaborationAPI = {
     return response.data;
   },
 
-  // Get project collaborations
   getProjectCollaborations: async (projectId) => {
-    const response = await api.get(`/collaboration/project/${projectId}`);
+    const response = await api.get(`/api/collaboration/project/${projectId}`);
     return response.data;
   },
 
-  // Update collaboration
   updateCollaboration: async (collaborationId, permissions) => {
-    const response = await api.put(`/collaboration/${collaborationId}`, {
+    const response = await api.put(`/api/collaboration/${collaborationId}`, {
       permissions
     });
     return response.data;
   },
 
-  // Remove collaboration
   removeCollaboration: async (collaborationId) => {
-    const response = await api.delete(`/collaboration/${collaborationId}`);
+    const response = await api.delete(`/api/collaboration/${collaborationId}`);
     return response.data;
   }
 };

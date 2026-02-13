@@ -46,9 +46,9 @@ const VerifyEmail = () => {
         setStatus('success');
         setMessage('Email verified successfully! You are being logged in...');
         
-        // Auto-login if we have a token
-        if (result.token) {
-          await login(result.user, result.token);
+        // Auto-login after verification (cookie is already set by the server)
+        if (result.user) {
+          login(result.user);
         }
       } catch (error) {
         console.error('Email verification error:', error);

@@ -1,8 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { projectAPI } from '../../services/projectApi';
 import ProjectCard from './ProjectCard';
 import ProjectModal from './ProjectModal';
 import Loader from '../Loader';
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All Projects' },
+  { value: 'planning', label: 'Planning' },
+  { value: 'active', label: 'Active' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on-hold', label: 'On Hold' }
+];
 
 const ProjectDashboard = () => {
   const [projects, setProjects] = useState([]);
@@ -17,13 +25,16 @@ const ProjectDashboard = () => {
     pages: 0
   });
 
-  const statusOptions = [
-    { value: 'all', label: 'All Projects', count: 0 },
-    { value: 'planning', label: 'Planning', count: 0 },
-    { value: 'active', label: 'Active', count: 0 },
-    { value: 'completed', label: 'Completed', count: 0 },
-    { value: 'on-hold', label: 'On Hold', count: 0 }
-  ];
+  // Compute status counts from current loaded projects
+  const statusCounts = useMemo(() => {
+    const counts = { all: pagination.total };
+    for (const opt of STATUS_OPTIONS) {
+      if (opt.value !== 'all') {
+        counts[opt.value] = projects.filter(p => p.status === opt.value).length;
+      }
+    }
+    return counts;
+  }, [projects, pagination.total]);
 
   const loadProjects = async (page = 1, status = selectedStatus) => {
     try {
@@ -36,10 +47,6 @@ const ProjectDashboard = () => {
       
       setProjects(result.projects);
       setPagination(result.pagination);
-
-      // Update status counts
-      statusOptions[0].count = result.pagination.total;
-      // You would typically get status counts from the backend
       
     } catch (err) {
       setError('Failed to load projects: ' + err.message);
@@ -81,7 +88,7 @@ const ProjectDashboard = () => {
   };
 
   if (loading && projects.length === 0) {
-    return <Loader />;
+    return <Loader message="Loading Projects" description="Fetching your reforestation projects..." />;
   }
 
   return (
@@ -147,7 +154,7 @@ const ProjectDashboard = () => {
         {/* Filters */}
         <div className="mb-6">
           <div className="flex flex-wrap gap-2">
-            {statusOptions.map(option => (
+            {STATUS_OPTIONS.map(option => (
               <button
                 key={option.value}
                 onClick={() => handleStatusChange(option.value)}
@@ -159,7 +166,7 @@ const ProjectDashboard = () => {
               >
                 {option.label}
                 <span className="ml-2 text-sm opacity-75">
-                  ({option.count})
+                  ({statusCounts[option.value] ?? 0})
                 </span>
               </button>
             ))}
